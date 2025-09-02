@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import ReactQueryProvider from "@/providers/ReactQueryProvider";
+import NextAuthProvider from "@/providers/NextAuthProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -110,8 +112,9 @@ export default function RootLayout({
 					defaultTheme="system"
 					enableSystem
 					disableTransitionOnChange
-				>
-					{children}
+				><ReactQueryProvider>
+              <NextAuthProvider>{children}</NextAuthProvider>
+					</ReactQueryProvider>
 				</ThemeProvider>
 			</body>
 		</html>
