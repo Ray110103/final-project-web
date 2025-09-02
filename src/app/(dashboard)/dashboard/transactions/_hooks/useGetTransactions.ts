@@ -55,7 +55,7 @@ export const useGetTransactions = (params: GetTransactionsParams = {}) => {
     setError(null);
     
     try {
-      const response = await axios.get<TransactionsResponse>('/transactions/', {
+      const response = await axios.get<TransactionsResponse>('transactions', {
         params: {
           page: 1,
           take: 20,
