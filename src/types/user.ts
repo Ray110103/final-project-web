@@ -1,11 +1,13 @@
 export interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
-  role: Role;
-  pictureProfile?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  password: string;
+  role: string;
+  pictureProfile: string | null;
+  isVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export enum Role {

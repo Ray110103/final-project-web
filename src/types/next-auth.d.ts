@@ -1,7 +1,7 @@
 import { User } from "./user";
 
 interface LoginPayload extends User {
-  accessToken: string;
+  accessToken: string ;
 }
 
 declare module "next-auth" {

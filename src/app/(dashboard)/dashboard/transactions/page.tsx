@@ -1,6 +1,5 @@
 // pages/tenant/transactions.tsx
 "use client";
-
 import { useState, useEffect, JSX } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,8 +22,6 @@ import {
     Clock,
     Mail,
     Calendar,
-    Building,
-    MapPin,
     RefreshCw,
 } from "lucide-react";
 import {
@@ -46,33 +43,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGetTransactions } from './_hooks/useGetTransactions';
 import { updateTransaction, cancelTransaction, sendReminderEmail } from './_services/transactionService';
 
-
 type TransactionStatus = "WAITING_FOR_PAYMENT" | "WAITING_FOR_CONFIRMATION" | "PAID" | "CANCELLED" | "EXPIRED";
+
+interface User {
+    id: number;
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+    pictureProfile: string | null;
+    isVerified: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
 
 interface Transaction {
     id: number;
     uuid: string;
-    userid: number;
+    userId: number;
     username: string;
-    roomid: string;
-    room: {
-        id: string;
-        name: string;
-        property: {
-            id: number;
-            name: string;
-            city: string;
-            address?: string;
-        };
-    };
+    roomId: number;
     qty: number;
     status: TransactionStatus;
     total: number;
     startDate: string;
     endDate: string;
-    paymentProof?: string;
+    paymentProof: string | null;
+    invoice_url: string | null;
+    expiredAt: string | null;
     createdAt: string;
     updatedAt: string;
+    user: User;
 }
 
 export default function TenantTransactionsPage() {
@@ -86,11 +87,10 @@ export default function TenantTransactionsPage() {
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("all");
     const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
     const { data: transactionsData, loading, error, refetch } = useGetTransactions({
         status: statusFilter !== "ALL" ? statusFilter : undefined
     });
-
+   
     // Format date to readable format
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString("en-US", {
@@ -99,7 +99,6 @@ export default function TenantTransactionsPage() {
             day: "numeric",
         });
     };
-
     // Get status badge variant based on transaction status
     const getStatusBadge = (status: TransactionStatus) => {
         switch (status) {
@@ -117,7 +116,6 @@ export default function TenantTransactionsPage() {
                 return <Badge variant="outline">{status}</Badge>;
         }
     };
-
     // Get status icon based on transaction status
     const getStatusIcon = (status: TransactionStatus) => {
         switch (status) {
@@ -135,7 +133,6 @@ export default function TenantTransactionsPage() {
                 return <Clock className="h-4 w-4 text-gray-500" />;
         }
     };
-
     // Handle transaction action (accept, reject, cancel)
     const handleTransactionAction = async () => {
         if (!selectedTransaction) return;
@@ -171,7 +168,6 @@ export default function TenantTransactionsPage() {
             setIsActionLoading(false);
         }
     };
-
     // Handle sending reminder email
     const handleSendReminder = async () => {
         if (!selectedTransaction) return;
@@ -192,7 +188,6 @@ export default function TenantTransactionsPage() {
             setIsActionLoading(false);
         }
     };
-
     // Open confirmation dialog for action
     const openActionDialog = (transaction: Transaction, action: "ACCEPT" | "REJECT" | "CANCEL") => {
         setSelectedTransaction(transaction);
@@ -204,36 +199,31 @@ export default function TenantTransactionsPage() {
             setIsConfirmDialogOpen(true);
         }
     };
-
     // Open reminder dialog
     const openReminderDialog = (transaction: Transaction) => {
         setSelectedTransaction(transaction);
         setIsReminderDialogOpen(true);
     };
-
     // Filter transactions by status for tabs
     const getTransactionsByStatus = (status: TransactionStatus | "ALL") => {
         if (!transactionsData?.data) return [];
         if (status === "ALL") return transactionsData.data;
         return transactionsData.data.filter(t => t.status === status);
     };
-
     // Filter transactions based on search term
     const filteredTransactions = transactionsData?.data?.filter(transaction => 
         searchTerm === "" ||
-        transaction.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.room.property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         transaction.uuid.toLowerCase().includes(searchTerm.toLowerCase())
     ) || [];
-
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Transaction Management</h2>
                     <p className="text-muted-foreground">
-                        Manage tenant transactions and payment confirmations for your properties.
+                        Manage tenant transactions and payment confirmations.
                     </p>
                 </div>
                 <Button 
@@ -383,11 +373,11 @@ export default function TenantTransactionsPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
-                            {actionType === "ACCEPT" ? "ACCEPT Payment" : "Reject Payment"}
+                            {actionType === "ACCEPT" ? "Accept Payment" : "Reject Payment"}
                         </DialogTitle>
                         <DialogDescription>
                             {actionType === "ACCEPT"
-                                ? "Are you sure you want to accept this payment? The system will automatically send a confirmation email to the user with room details and property information."
+                                ? "Are you sure you want to accept this payment? The system will automatically send a confirmation email to the user."
                                 : "Are you sure you want to reject this payment? The order status will return to 'Waiting for Payment'."}
                         </DialogDescription>
                     </DialogHeader>
@@ -400,15 +390,15 @@ export default function TenantTransactionsPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="font-medium">Customer:</span>
-                                <span>{selectedTransaction.username}</span>
+                                <span>{selectedTransaction.user.name}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="font-medium">Property:</span>
-                                <span>{selectedTransaction.room.property.name}</span>
+                                <span className="font-medium">Email:</span>
+                                <span>{selectedTransaction.user.email}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="font-medium">Room:</span>
-                                <span>{selectedTransaction.room.name}</span>
+                                <span className="font-medium">Room ID:</span>
+                                <span>{selectedTransaction.roomId}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="font-medium">Amount:</span>
@@ -431,7 +421,7 @@ export default function TenantTransactionsPage() {
                             disabled={isActionLoading}
                             variant={actionType === "ACCEPT" ? "default" : "destructive"}
                         >
-                            {isActionLoading ? "Processing..." : actionType === "ACCEPT" ? "ACCEPT" : "Reject"}
+                            {isActionLoading ? "Processing..." : actionType === "ACCEPT" ? "Accept" : "Reject"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -461,15 +451,15 @@ export default function TenantTransactionsPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="font-medium">Customer:</span>
-                                <span>{selectedTransaction.username}</span>
+                                <span>{selectedTransaction.user.name}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="font-medium">Property:</span>
-                                <span>{selectedTransaction.room.property.name}</span>
+                                <span className="font-medium">Email:</span>
+                                <span>{selectedTransaction.user.email}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="font-medium">Room:</span>
-                                <span>{selectedTransaction.room.name}</span>
+                                <span className="font-medium">Room ID:</span>
+                                <span>{selectedTransaction.roomId}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="font-medium">Amount:</span>
@@ -504,7 +494,7 @@ export default function TenantTransactionsPage() {
                     <DialogHeader>
                         <DialogTitle>Send Reminder Email</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to send a reminder email to the customer? This will include booking details and property rules.
+                            Are you sure you want to send a reminder email to the customer? This will include booking details.
                         </DialogDescription>
                     </DialogHeader>
                     
@@ -516,11 +506,11 @@ export default function TenantTransactionsPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="font-medium">Customer:</span>
-                                <span>{selectedTransaction.username}</span>
+                                <span>{selectedTransaction.user.name}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="font-medium">Property:</span>
-                                <span>{selectedTransaction.room.property.name}</span>
+                                <span className="font-medium">Email:</span>
+                                <span>{selectedTransaction.user.email}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="font-medium">Check-in Date:</span>
@@ -545,7 +535,6 @@ export default function TenantTransactionsPage() {
         </div>
     );
 }
-
 // Transaction Table Component
 interface TransactionTableProps {
     transactions: Transaction[];
@@ -555,7 +544,6 @@ interface TransactionTableProps {
     openActionDialog: (transaction: Transaction, action: "ACCEPT" | "REJECT" | "CANCEL") => void;
     openReminderDialog: (transaction: Transaction) => void;
 }
-
 const TransactionTable: React.FC<TransactionTableProps> = ({
     transactions,
     getStatusBadge,
@@ -580,8 +568,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                             <TableRow>
                                 <TableHead>Transaction ID</TableHead>
                                 <TableHead>Customer</TableHead>
-                                <TableHead>Property</TableHead>
-                                <TableHead>Room</TableHead>
                                 <TableHead>Dates</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Total</TableHead>
@@ -597,26 +583,19 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                                     <TableCell>
                                         <div className="flex items-center gap-3">
                                             <Avatar className="h-8 w-8">
+                                                <AvatarImage src={transaction.user.pictureProfile || undefined} />
                                                 <AvatarFallback>
-                                                    {transaction.username
+                                                    {transaction.user.name
                                                         .split(" ")
                                                         .map((n) => n[0])
                                                         .join("")}
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <div className="font-medium">{transaction.username}</div>
+                                                <div className="font-medium">{transaction.user.name}</div>
+                                                <div className="text-sm text-muted-foreground">{transaction.user.email}</div>
                                             </div>
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-1">
-                                            <Building className="h-4 w-4 text-blue-500" />
-                                            <span>{transaction.room.property.name}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        {transaction.room.name}
                                     </TableCell>
                                     <TableCell>
                                         <div className="text-sm">
@@ -653,7 +632,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                                                             className="text-green-600"
                                                         >
                                                             <CheckCircle className="h-4 w-4 mr-2" />
-                                                            ACCEPT Payment
+                                                            Accept Payment
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             onClick={() => openActionDialog(transaction, "REJECT")}
