@@ -1,24 +1,11 @@
-import { FC } from "react";
-import ReactMarkdown, { Components } from "react-markdown";
-import rehypeRaw from "rehype-raw";
+import { Loader } from "lucide-react";
 
-interface MarkdownProps {
-  content: string;
-}
-
-const Markdown: FC<MarkdownProps> = ({ content }) => {
-  const components: Components = {
-    h1: ({ children }) => <h1 className="text-2xl font-bold">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-xl font-bold">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-lg font-bold">{children}</h3>,
-    p: ({ children }) => <p className="text-base">{children}</p>,
-  };
-
+const Loading = () => {
   return (
-    <ReactMarkdown rehypePlugins={[rehypeRaw]} components={components}>
-      {content}
-    </ReactMarkdown>
+    <section className="flex justify-center items-center h-[50vh]">
+      <Loader className="size-8 animate-spin" />
+    </section>
   );
 };
 
-export default Markdown;
+export default Loading;

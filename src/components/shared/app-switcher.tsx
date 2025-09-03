@@ -138,4 +138,8 @@ export function AppSwitcher() {
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
+<<<<<<< Updated upstream
 }
+=======
+}
+>>>>>>> Stashed changes

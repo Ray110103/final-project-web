@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AppSwitcher } from "./app-switcher";
+<<<<<<< Updated upstream
 import { ThemeToggle } from "../theme-toggle";
+=======
+import { ThemeToggle } from "@/components/theme-toggle";
+>>>>>>> Stashed changes
 
 
 
@@ -103,4 +107,8 @@ export function Topbar() {
 			</div>
 		</div>
 	);
+<<<<<<< Updated upstream
 }
+=======
+}
+>>>>>>> Stashed changes

@@ -46,6 +46,7 @@ const sidebarGroups = [
 			},
 		],
 	},
+<<<<<<< Updated upstream
 
 	{
 		title: "Property",
@@ -74,6 +75,8 @@ const sidebarGroups = [
 
 	
 
+=======
+>>>>>>> Stashed changes
 	{
 		title: "Pages",
 		items: [
@@ -115,7 +118,10 @@ const sidebarGroups = [
 			},
 		],
 	},
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 	{
 		title: "Others",
 		items: [
@@ -251,4 +257,8 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
 			</nav>
 		</div>
 	);
+<<<<<<< Updated upstream
 }
+=======
+}
+>>>>>>> Stashed changes

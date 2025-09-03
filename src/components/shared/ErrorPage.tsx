@@ -57,4 +57,8 @@ export default function ErrorPage({
 			</Card>
 		</div>
 	);
+<<<<<<< Updated upstream
 }
+=======
+}
+>>>>>>> Stashed changes
