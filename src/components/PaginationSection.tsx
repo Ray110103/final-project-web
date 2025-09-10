@@ -1,52 +1,31 @@
-import { metadata } from "@/app/layout";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import { PaginationMeta } from "@/types/pagination";
+"use client";
 
-interface PaginationServiceProps {
-  meta: PaginationMeta;
-  setPage: (page: number) => void;
+import type * as React from "react";
+import * as ProgressPrimitive from "@radix-ui/react-progress";
+
+import { cn } from "@/lib/utils";
+
+function Progress({
+	className,
+	value,
+	...props
+}: React.ComponentProps<typeof ProgressPrimitive.Root>) {
+	return (
+		<ProgressPrimitive.Root
+			data-slot="progress"
+			className={cn(
+				"bg-primary/20 relative h-2 w-full overflow-hidden rounded-full",
+				className,
+			)}
+			{...props}
+		>
+			<ProgressPrimitive.Indicator
+				data-slot="progress-indicator"
+				className="bg-primary h-full w-full flex-1 transition-all"
+				style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+			/>
+		</ProgressPrimitive.Root>
+	);
 }
 
-const PaginationSection = ({meta, setPage} : PaginationServiceProps) => {
-  const { page, take, total } = meta;
-
-  const handlePrev = () => {
-    if (page > 1) {
-      setPage(page - 1);
-    }
-  };
-  const handleNext = () => {
-    const totalPages = Math.ceil(total / take);
-    if (page < totalPages) {
-      setPage(page + 1);
-    }
-  };
-
-  return (
-    <Pagination>
-      <PaginationContent>
-        <PaginationItem>
-          <PaginationPrevious onClick={handlePrev} />
-        </PaginationItem>
-
-        <PaginationItem>
-          <PaginationLink>{page}</PaginationLink>
-        </PaginationItem>
-
-        <PaginationItem>
-          <PaginationNext onClick={handleNext} />
-        </PaginationItem>
-      </PaginationContent>
-    </Pagination>
-  );
-};
-
-export default PaginationSection;
+export { Progress };

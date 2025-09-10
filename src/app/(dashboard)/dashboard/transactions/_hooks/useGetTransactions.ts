@@ -7,35 +7,50 @@ import { AxiosError } from "axios";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+type TransactionStatus = "WAITING_FOR_PAYMENT" | "WAITING_FOR_CONFIRMATION" | "PAID" | "CANCELLED" | "EXPIRED";
+type PaymentMethod = "MANUAL_TRANSFER" | "PAYMENT_GATEWAY";
+
 interface User {
-  id: number;
-  name: string;
-  email: string;
-  password: string;
-  role: string;
-  pictureProfile: string | null;
-  isVerified: boolean;
-  createdAt: string;
-  updatedAt: string;
+    id: number;
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+    pictureProfile: string | null;
+    isVerified: boolean;
+    createdAt: string;
+    updatedAt: string;
 }
 
 interface Transaction {
-  id: number;
-  uuid: string;
-  userId: number;
-  username: string;
-  roomId: number;
-  qty: number;
-  status: 'WAITING_FOR_PAYMENT' | 'WAITING_FOR_CONFIRMATION' | 'PAID' | 'CANCELLED' | 'EXPIRED';
-  total: number;
-  startDate: string;
-  endDate: string;
-  paymentProof: string | null;
-  invoice_url: string | null;
-  expiredAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  user: User;
+    id: number;
+    uuid: string;
+    userId: number;
+    username: string;
+    roomId: number;
+    qty: number;
+    status: TransactionStatus;
+    total: number;
+    startDate: string;
+    endDate: string;
+    paymentProof: string | null;
+    invoice_url: string | null;
+    expiredAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    user: User;
+    paymentMethod: PaymentMethod;
+    room: {
+        id: number;
+        name: string;
+        price: number;
+        property: {
+            id: number;
+            title: string;
+            thumbnail: string;
+            city: string;
+        };
+    };
 }
 
 interface GetTransactionsParams {
@@ -44,6 +59,8 @@ interface GetTransactionsParams {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   status?: string;
+  orderNumber?: string;
+  date?: string;
 }
 
 interface TransactionsResponse {
@@ -54,35 +71,62 @@ interface TransactionsResponse {
     total: number;
   };
 }
-export const useGetTransactions = (params: GetTransactionsParams = {}) => {
+
+interface UseGetTransactionsOptions {
+  enabled?: boolean;
+  role?: 'user' | 'tenant';
+}
+
+export const useGetTransactions = (
+  params: GetTransactionsParams = {}, 
+  options: UseGetTransactionsOptions = { enabled: true, role: 'user' }
+) => {
   const [data, setData] = useState<TransactionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const router = useRouter();
   const queryClient = useQueryClient();
   const session = useSession();
-
+  const { enabled, role } = options;
 
   const fetchData = async () => {
+    if (!enabled) return;
+    
     setLoading(true);
     setError(null);
     
     try {
-      const response = await axiosInstance.get<TransactionsResponse>('/transactions', {
-        headers: { Authorization: `Bearer ${session.data?.user.accessToken}` },
+      // Check if user is authenticated
+      if (!session.data?.user?.accessToken) {
+        throw new Error('Authentication required');
+      }
+      
+      // Determine endpoint based on role
+      const endpoint = role === 'tenant' ? '/transactions/tenant' : '/transactions';
+      
+      const response = await axiosInstance.get<TransactionsResponse>(endpoint, {
+        headers: { Authorization: `Bearer ${session.data.user.accessToken}` },
         params: {
-          page: 1,
-          take: 20,
-          sortBy: 'createdAt',
-          sortOrder: 'desc',
+          page: params.page || 1,
+          take: params.take || 20,
+          sortBy: params.sortBy || 'createdAt',
+          sortOrder: params.sortOrder || 'desc',
           ...params
         }
       });
-      console.log(response.data);
+      
       setData(response.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof AxiosError 
+        ? err.response?.data?.message || err.message 
+        : 'An error occurred';
+      
+      setError(errorMessage);
+      
+      // Redirect to login if authentication error
+      if (err instanceof AxiosError && err.response?.status === 401) {
+        router.push('/login');
+      }
     } finally {
       setLoading(false);
     }
@@ -90,7 +134,59 @@ export const useGetTransactions = (params: GetTransactionsParams = {}) => {
 
   useEffect(() => {
     fetchData();
-  }, [JSON.stringify(params)]);
+  }, [JSON.stringify(params), enabled, role]);
 
-  return { data, loading, error, refetch: fetchData };
+  // Function to manually refetch data
+  const refetch = () => {
+    fetchData();
+  };
+
+  // Function to update local data without refetching
+  const updateLocalData = (updatedTransaction: Transaction) => {
+    if (!data) return;
+    
+    const updatedData = {
+      ...data,
+      data: data.data.map(transaction => 
+        transaction.id === updatedTransaction.id ? updatedTransaction : transaction
+      )
+    };
+    
+    setData(updatedData);
+  };
+
+  // Function to remove a transaction from local data
+  const removeLocalTransaction = (transactionId: number) => {
+    if (!data) return;
+    
+    const updatedData = {
+      ...data,
+      data: data.data.filter(transaction => transaction.id !== transactionId),
+      meta: {
+        ...data.meta,
+        total: data.meta.total - 1
+      }
+    };
+    
+    setData(updatedData);
+  };
+
+  return { 
+    data, 
+    loading, 
+    error, 
+    refetch,
+    updateLocalData,
+    removeLocalTransaction
+  };
+};
+
+// Hook for tenant transactions
+export const useGetTenantTransactions = (params: GetTransactionsParams = {}) => {
+  return useGetTransactions(params, { enabled: true, role: 'tenant' });
+};
+
+// Hook for user transactions
+export const useGetUserTransactions = (params: GetTransactionsParams = {}) => {
+  return useGetTransactions(params, { enabled: true, role: 'user' });
 };

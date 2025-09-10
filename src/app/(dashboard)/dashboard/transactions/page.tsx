@@ -1,4 +1,3 @@
-// pages/tenant/transactions.tsx
 "use client";
 import { useState, useEffect, JSX } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +22,8 @@ import {
     Mail,
     Calendar,
     RefreshCw,
+    Eye,
+    AlertCircle,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -44,6 +45,7 @@ import { useGetTransactions } from './_hooks/useGetTransactions';
 import { updateTransaction, cancelTransaction, sendReminderEmail } from './_services/transactionService';
 
 type TransactionStatus = "WAITING_FOR_PAYMENT" | "WAITING_FOR_CONFIRMATION" | "PAID" | "CANCELLED" | "EXPIRED";
+type PaymentMethod = "MANUAL_TRANSFER" | "PAYMENT_GATEWAY";
 
 interface User {
     id: number;
@@ -74,6 +76,18 @@ interface Transaction {
     createdAt: string;
     updatedAt: string;
     user: User;
+    paymentMethod: PaymentMethod;
+    room: {
+        id: number;
+        name: string;
+        price: number;
+        property: {
+            id: number;
+            title: string;
+            thumbnail: string;
+            city: string;
+        };
+    };
 }
 
 export default function TenantTransactionsPage() {
@@ -83,10 +97,12 @@ export default function TenantTransactionsPage() {
     const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
+    const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
     const [actionType, setActionType] = useState<"ACCEPT" | "REJECT" | "CANCEL">("ACCEPT");
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("all");
     const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    
     const { data: transactionsData, loading, error, refetch } = useGetTransactions({
         status: statusFilter !== "ALL" ? statusFilter : undefined
     });
@@ -99,6 +115,7 @@ export default function TenantTransactionsPage() {
             day: "numeric",
         });
     };
+    
     // Get status badge variant based on transaction status
     const getStatusBadge = (status: TransactionStatus) => {
         switch (status) {
@@ -116,6 +133,7 @@ export default function TenantTransactionsPage() {
                 return <Badge variant="outline">{status}</Badge>;
         }
     };
+    
     // Get status icon based on transaction status
     const getStatusIcon = (status: TransactionStatus) => {
         switch (status) {
@@ -133,6 +151,7 @@ export default function TenantTransactionsPage() {
                 return <Clock className="h-4 w-4 text-gray-500" />;
         }
     };
+    
     // Handle transaction action (accept, reject, cancel)
     const handleTransactionAction = async () => {
         if (!selectedTransaction) return;
@@ -168,6 +187,7 @@ export default function TenantTransactionsPage() {
             setIsActionLoading(false);
         }
     };
+    
     // Handle sending reminder email
     const handleSendReminder = async () => {
         if (!selectedTransaction) return;
@@ -188,6 +208,7 @@ export default function TenantTransactionsPage() {
             setIsActionLoading(false);
         }
     };
+    
     // Open confirmation dialog for action
     const openActionDialog = (transaction: Transaction, action: "ACCEPT" | "REJECT" | "CANCEL") => {
         setSelectedTransaction(transaction);
@@ -199,24 +220,45 @@ export default function TenantTransactionsPage() {
             setIsConfirmDialogOpen(true);
         }
     };
+    
     // Open reminder dialog
     const openReminderDialog = (transaction: Transaction) => {
         setSelectedTransaction(transaction);
         setIsReminderDialogOpen(true);
     };
+    
+    // Open details dialog
+    const openDetailsDialog = (transaction: Transaction) => {
+        setSelectedTransaction(transaction);
+        setIsDetailsDialogOpen(true);
+    };
+    
     // Filter transactions by status for tabs
     const getTransactionsByStatus = (status: TransactionStatus | "ALL") => {
         if (!transactionsData?.data) return [];
         if (status === "ALL") return transactionsData.data;
         return transactionsData.data.filter(t => t.status === status);
     };
+    
     // Filter transactions based on search term
     const filteredTransactions = transactionsData?.data?.filter(transaction => 
         searchTerm === "" ||
         transaction.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         transaction.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.uuid.toLowerCase().includes(searchTerm.toLowerCase())
+        transaction.uuid.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.room.property.title.toLowerCase().includes(searchTerm.toLowerCase())
     ) || [];
+    
+    // Auto-hide toast message after 3 seconds
+    useEffect(() => {
+        if (toastMessage) {
+            const timer = setTimeout(() => {
+                setToastMessage(null);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toastMessage]);
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -246,6 +288,7 @@ export default function TenantTransactionsPage() {
             {/* Error State */}
             {error && (
                 <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
                         Failed to load transactions: {error}
                     </AlertDescription>
@@ -320,6 +363,7 @@ export default function TenantTransactionsPage() {
                         formatDate={formatDate}
                         openActionDialog={openActionDialog}
                         openReminderDialog={openReminderDialog}
+                        openDetailsDialog={openDetailsDialog}
                     />
                 </TabsContent>
                 
@@ -331,6 +375,7 @@ export default function TenantTransactionsPage() {
                         formatDate={formatDate}
                         openActionDialog={openActionDialog}
                         openReminderDialog={openReminderDialog}
+                        openDetailsDialog={openDetailsDialog}
                     />
                 </TabsContent>
                 
@@ -342,6 +387,7 @@ export default function TenantTransactionsPage() {
                         formatDate={formatDate}
                         openActionDialog={openActionDialog}
                         openReminderDialog={openReminderDialog}
+                        openDetailsDialog={openDetailsDialog}
                     />
                 </TabsContent>
                 
@@ -353,6 +399,7 @@ export default function TenantTransactionsPage() {
                         formatDate={formatDate}
                         openActionDialog={openActionDialog}
                         openReminderDialog={openReminderDialog}
+                        openDetailsDialog={openDetailsDialog}
                     />
                 </TabsContent>
                 
@@ -364,6 +411,7 @@ export default function TenantTransactionsPage() {
                         formatDate={formatDate}
                         openActionDialog={openActionDialog}
                         openReminderDialog={openReminderDialog}
+                        openDetailsDialog={openDetailsDialog}
                     />
                 </TabsContent>
             </Tabs>
@@ -377,7 +425,7 @@ export default function TenantTransactionsPage() {
                         </DialogTitle>
                         <DialogDescription>
                             {actionType === "ACCEPT"
-                                ? "Are you sure you want to accept this payment? The system will automatically send a confirmation email to the user."
+                                ? "Are you sure you want to accept this payment? The system will automatically send a confirmation email to the user with booking details and property rules."
                                 : "Are you sure you want to reject this payment? The order status will return to 'Waiting for Payment'."}
                         </DialogDescription>
                     </DialogHeader>
@@ -397,8 +445,12 @@ export default function TenantTransactionsPage() {
                                 <span>{selectedTransaction.user.email}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="font-medium">Room ID:</span>
-                                <span>{selectedTransaction.roomId}</span>
+                                <span className="font-medium">Property:</span>
+                                <span>{selectedTransaction.room.property.title}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="font-medium">Room:</span>
+                                <span>{selectedTransaction.room.name}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="font-medium">Amount:</span>
@@ -407,6 +459,12 @@ export default function TenantTransactionsPage() {
                                         style: "currency",
                                         currency: "IDR",
                                     })}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="font-medium">Dates:</span>
+                                <span>
+                                    {formatDate(selectedTransaction.startDate)} - {formatDate(selectedTransaction.endDate)}
                                 </span>
                             </div>
                         </div>
@@ -440,6 +498,7 @@ export default function TenantTransactionsPage() {
                     {selectedTransaction && (
                         <div className="space-y-2">
                             <Alert>
+                                <AlertCircle className="h-4 w-4" />
                                 <AlertDescription>
                                     You can only cancel orders where the payment proof has not been uploaded yet.
                                 </AlertDescription>
@@ -458,8 +517,8 @@ export default function TenantTransactionsPage() {
                                 <span>{selectedTransaction.user.email}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="font-medium">Room ID:</span>
-                                <span>{selectedTransaction.roomId}</span>
+                                <span className="font-medium">Property:</span>
+                                <span>{selectedTransaction.room.property.title}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="font-medium">Amount:</span>
@@ -494,7 +553,7 @@ export default function TenantTransactionsPage() {
                     <DialogHeader>
                         <DialogTitle>Send Reminder Email</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to send a reminder email to the customer? This will include booking details.
+                            Are you sure you want to send a reminder email to the customer? This will include booking details and property rules.
                         </DialogDescription>
                     </DialogHeader>
                     
@@ -516,6 +575,10 @@ export default function TenantTransactionsPage() {
                                 <span className="font-medium">Check-in Date:</span>
                                 <span>{formatDate(selectedTransaction.startDate)}</span>
                             </div>
+                            <div className="flex justify-between">
+                                <span className="font-medium">Property:</span>
+                                <span>{selectedTransaction.room.property.title}</span>
+                            </div>
                         </div>
                     )}
                     
@@ -532,9 +595,96 @@ export default function TenantTransactionsPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            
+            {/* Transaction Details Dialog */}
+            <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Transaction Details</DialogTitle>
+                    </DialogHeader>
+                    
+                    {selectedTransaction && (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground">Transaction ID</h3>
+                                    <p className="font-medium">{selectedTransaction.uuid}</p>
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground">Status</h3>
+                                    <div className="flex items-center gap-1">
+                                        {getStatusIcon(selectedTransaction.status)}
+                                        {getStatusBadge(selectedTransaction.status)}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground">Customer</h3>
+                                    <p className="font-medium">{selectedTransaction.user.name}</p>
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground">Email</h3>
+                                    <p className="font-medium">{selectedTransaction.user.email}</p>
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground">Property</h3>
+                                    <p className="font-medium">{selectedTransaction.room.property.title}</p>
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground">Room</h3>
+                                    <p className="font-medium">{selectedTransaction.room.name}</p>
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground">Check-in</h3>
+                                    <p className="font-medium">{formatDate(selectedTransaction.startDate)}</p>
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground">Check-out</h3>
+                                    <p className="font-medium">{formatDate(selectedTransaction.endDate)}</p>
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground">Total Amount</h3>
+                                    <p className="font-medium">
+                                        {selectedTransaction.total.toLocaleString("id-ID", {
+                                            style: "currency",
+                                            currency: "IDR",
+                                        })}
+                                    </p>
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground">Payment Method</h3>
+                                    <p className="font-medium">{selectedTransaction.paymentMethod.replace('_', ' ')}</p>
+                                </div>
+                            </div>
+                            
+                            {selectedTransaction.paymentProof && (
+                                <div>
+                                    <h3 className="font-medium text-sm text-muted-foreground mb-2">Payment Proof</h3>
+                                    <div className="border rounded-md p-2 bg-gray-50">
+                                        <a 
+                                            href={selectedTransaction.paymentProof} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline"
+                                        >
+                                            View Payment Proof
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
+                            Close
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
+
 // Transaction Table Component
 interface TransactionTableProps {
     transactions: Transaction[];
@@ -543,14 +693,17 @@ interface TransactionTableProps {
     formatDate: (dateString: string) => string;
     openActionDialog: (transaction: Transaction, action: "ACCEPT" | "REJECT" | "CANCEL") => void;
     openReminderDialog: (transaction: Transaction) => void;
+    openDetailsDialog: (transaction: Transaction) => void;
 }
+
 const TransactionTable: React.FC<TransactionTableProps> = ({
     transactions,
     getStatusBadge,
     getStatusIcon,
     formatDate,
     openActionDialog,
-    openReminderDialog
+    openReminderDialog,
+    openDetailsDialog
 }) => {
     return (
         <Card>
@@ -568,6 +721,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                             <TableRow>
                                 <TableHead>Transaction ID</TableHead>
                                 <TableHead>Customer</TableHead>
+                                <TableHead>Property</TableHead>
                                 <TableHead>Dates</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Total</TableHead>
@@ -598,6 +752,12 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                                         </div>
                                     </TableCell>
                                     <TableCell>
+                                        <div>
+                                            <div className="font-medium">{transaction.room.property.title}</div>
+                                            <div className="text-sm text-muted-foreground">{transaction.room.name}</div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
                                         <div className="text-sm">
                                             <div>{formatDate(transaction.startDate)}</div>
                                             <div className="text-muted-foreground">to {formatDate(transaction.endDate)}</div>
@@ -623,7 +783,10 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem>View Details</DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => openDetailsDialog(transaction)}>
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                    View Details
+                                                </DropdownMenuItem>
                                                 
                                                 {transaction.status === "WAITING_FOR_CONFIRMATION" && (
                                                     <>
@@ -662,7 +825,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                                                             <Mail className="h-4 w-4 mr-2" />
                                                             Send Reminder
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() => openDetailsDialog(transaction)}
+                                                        >
                                                             <Calendar className="h-4 w-4 mr-2" />
                                                             View Booking Details
                                                         </DropdownMenuItem>
