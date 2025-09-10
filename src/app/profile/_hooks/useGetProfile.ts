@@ -1,5 +1,5 @@
-import { User } from "@/app/types/user";
-import {axiosInstance}  from "@/lib/axios";
+import { User } from "@/types/user";
+import axiosInstance from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 

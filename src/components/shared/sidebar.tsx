@@ -46,6 +46,34 @@ const sidebarGroups = [
 			},
 		],
 	},
+
+	{
+		title: "Property",
+		items: [
+			
+			{
+				title: "Properties",
+				href: "/dashboard/property",
+				icon: Settings,
+				badge: null,
+			},
+			{
+				title: "Create Property",
+				href: "/dashboard/property/create",
+				icon: Settings,
+				badge: null,
+			},
+			{
+				title: "Room",
+				href: "/dashboard/rooms/create",
+				icon: Settings,
+				badge: null,
+			},
+		],
+	},
+
+	
+
 	{
 		title: "Pages",
 		items: [
@@ -87,6 +115,7 @@ const sidebarGroups = [
 			},
 		],
 	},
+
 	{
 		title: "Others",
 		items: [

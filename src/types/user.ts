@@ -2,15 +2,8 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  password: string;
+  pictureProfile: string;
   role: string;
-  pictureProfile: string | null;
-  isVerified: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export enum Role {
-  TENANT = 'TENANT',
-  USER = 'USER'
+  createdAt: Date;
+  updatedAt: Date;
 }

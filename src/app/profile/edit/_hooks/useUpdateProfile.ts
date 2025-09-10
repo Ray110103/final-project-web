@@ -1,6 +1,6 @@
 "use client"
 
-import {axiosInstance} from "@/lib/axios";
+import axiosInstance from "@/lib/axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useSession } from "next-auth/react";

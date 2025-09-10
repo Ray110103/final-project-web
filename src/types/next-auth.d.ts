@@ -1,7 +1,7 @@
-import { User } from "./user";
+import { User } from "../../types/user";
 
 interface LoginPayload extends User {
-  accessToken: string ;
+  accessToken: string;
 }
 
 declare module "next-auth" {
@@ -9,3 +9,4 @@ declare module "next-auth" {
     user: LoginPayload;
   }
 }
+
