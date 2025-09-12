@@ -1,7 +1,7 @@
 import { Room } from "@/types/room";
 
 export interface Property {
-  id: string;
+  id: number;
   title: string;
   slug: string;
   description: string
@@ -16,4 +16,12 @@ export interface Property {
   updatedAt: string;
   tenantId: string;
   rooms?: Room[]
+}
+
+
+export interface PropertyAvailability {
+  date: string;
+  available: boolean;
+  stock: number;
+  booked: boolean;
 }
