@@ -1,56 +1,13 @@
-// hooks/useGetTransactions.ts
+// src/hooks/use-transactions.ts
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { axiosInstance } from "@/lib/axios";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AxiosError } from "axios";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { axiosInstance } from '@/lib/axios';
+import { Transaction, TransactionStatus, TransactionsResponse } from '@/types/transaction';
 
-type TransactionStatus = "WAITING_FOR_PAYMENT" | "WAITING_FOR_CONFIRMATION" | "PAID" | "CANCELLED" | "EXPIRED";
-type PaymentMethod = "MANUAL_TRANSFER" | "PAYMENT_GATEWAY";
-
-interface User {
-    id: number;
-    name: string;
-    email: string;
-    password: string;
-    role: string;
-    pictureProfile: string | null;
-    isVerified: boolean;
-    createdAt: string;
-    updatedAt: string;
-}
-
-interface Transaction {
-    id: number;
-    uuid: string;
-    userId: number;
-    username: string;
-    roomId: number;
-    qty: number;
-    status: TransactionStatus;
-    total: number;
-    startDate: string;
-    endDate: string;
-    paymentProof: string | null;
-    invoice_url: string | null;
-    expiredAt: string | null;
-    createdAt: string;
-    updatedAt: string;
-    user: User;
-    paymentMethod: PaymentMethod;
-    room: {
-        id: number;
-        name: string;
-        price: number;
-        property: {
-            id: number;
-            title: string;
-            thumbnail: string;
-            city: string;
-        };
-    };
+interface UseGetTransactionsOptions {
+  enabled?: boolean;
+  role?: 'user' | 'tenant';
 }
 
 interface GetTransactionsParams {
@@ -63,20 +20,6 @@ interface GetTransactionsParams {
   date?: string;
 }
 
-interface TransactionsResponse {
-  data: Transaction[];
-  meta: {
-    page: number;
-    take: number;
-    total: number;
-  };
-}
-
-interface UseGetTransactionsOptions {
-  enabled?: boolean;
-  role?: 'user' | 'tenant';
-}
-
 export const useGetTransactions = (
   params: GetTransactionsParams = {}, 
   options: UseGetTransactionsOptions = { enabled: true, role: 'user' }
@@ -85,7 +28,6 @@ export const useGetTransactions = (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const queryClient = useQueryClient();
   const session = useSession();
   const { enabled, role } = options;
 
@@ -116,15 +58,13 @@ export const useGetTransactions = (
       });
       
       setData(response.data);
-    } catch (err) {
-      const errorMessage = err instanceof AxiosError 
-        ? err.response?.data?.message || err.message 
-        : 'An error occurred';
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'An error occurred';
       
       setError(errorMessage);
       
       // Redirect to login if authentication error
-      if (err instanceof AxiosError && err.response?.status === 401) {
+      if (err.response?.status === 401) {
         router.push('/login');
       }
     } finally {
