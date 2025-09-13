@@ -1,303 +1,320 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { Formik, Field, Form, ErrorMessage } from "formik";
-import * as Yup from "yup";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import useCreateRoom from "../_hooks/useCreateRoom";
-import { axiosInstance } from "@/lib/axios";
-import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react"
+import { Formik, Field, Form, ErrorMessage } from "formik"
+import * as Yup from "yup"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import useCreateRoom from "../_hooks/useCreateRoom"
+import { axiosInstance } from "@/lib/axios"
+import { useSession } from "next-auth/react"
 
 interface RoomFormValues {
-  name: string;
-  capacity: number;
-  price: number;
-  description: string;
-  property: string; // Changed from propertyId to property (slug)
-  limit: number;
+  name: string
+  capacity: number
+  price: number
+  description: string
+  property: string
+  limit: number
+  images: File[] // ✅ tambahkan images
 }
 
 interface PropertyOption {
-  id: string | number;
-  title: string;
-  slug: string; // Added slug field
+  id: string | number
+  title: string
+  slug: string
 }
 
 const validationSchema = Yup.object().shape({
   name: Yup.string().required("Room name is required"),
-  capacity: Yup.number()
-    .required("Capacity is required")
-    .min(1, "Minimum is 1"),
+  capacity: Yup.number().required("Capacity is required").min(1, "Minimum is 1"),
   price: Yup.number().required("Price is required").min(0, "Minimum is 0"),
   description: Yup.string().required("Description is required"),
-  property: Yup.string().required("Property is required"), // Changed from propertyId to property
+  property: Yup.string().required("Property is required"),
   limit: Yup.number().required("Limit is required").min(1, "Minimum is 1"),
-});
+  images: Yup.array().min(1, "At least one image is required"), // ✅ validasi
+})
 
 const CreateRoom = () => {
-  const createRoom = useCreateRoom();
-  const { data: session } = useSession();
-  const [submitting, setSubmitting] = useState(false);
-  const [properties, setProperties] = useState<PropertyOption[]>([]);
-  const [loadingProperties, setLoadingProperties] = useState(true);
+  const createRoom = useCreateRoom()
+  const { data: session } = useSession()
+  const [submitting, setSubmitting] = useState(false)
+  const [properties, setProperties] = useState<PropertyOption[]>([])
+  const [loadingProperties, setLoadingProperties] = useState(true)
 
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        // Fetch only user's properties by adding auth header
         const res = await axiosInstance.get("/property", {
           headers: {
             Authorization: `Bearer ${session?.user.accessToken}`,
           },
-        });
-        // Make sure we're getting the data structure correctly
-        const propertiesData = res.data.data ?? res.data;
-        setProperties(Array.isArray(propertiesData) ? propertiesData : []);
+        })
+        const propertiesData = res.data.data ?? res.data
+        setProperties(Array.isArray(propertiesData) ? propertiesData : [])
       } catch (error) {
-        console.error("Failed to fetch properties", error);
-        setProperties([]); // Set empty array on error
+        console.error("Failed to fetch properties", error)
+        setProperties([])
       } finally {
-        setLoadingProperties(false);
+        setLoadingProperties(false)
       }
-    };
+    }
 
     if (session?.user.accessToken) {
-      fetchProperties();
+      fetchProperties()
     }
-  }, [session]);
+  }, [session])
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background">
       <main className="container mx-auto px-6 py-12">
         <div className="max-w-7xl mx-auto">
           <div className="mb-12">
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Create <span className="text-orange-500">Room</span>
+            <h1 className="text-4xl font-bold text-foreground mb-2">
+              Buat <span className="text-primary">Kamar</span>
             </h1>
-            <p className="text-gray-400 text-lg">
-              Fill in the details to create your new room
-            </p>
+            <p className="text-muted-foreground text-lg">Isi detail untuk membuat kamar baru Anda</p>
           </div>
 
-          <Formik<RoomFormValues>
-            initialValues={{
-              name: "",
-              capacity: 1,
-              price: 0,
-              description: "",
-              property: "", // Changed from propertyId to property
-              limit: 1,
-            }}
-            validationSchema={validationSchema}
-            onSubmit={async (values, { resetForm }) => {
-              setSubmitting(true);
-              try {
-                await createRoom.mutateAsync(values);
-                resetForm();
-              } catch (err) {
-                console.error("Error creating room:", err);
-              } finally {
-                setSubmitting(false);
-              }
-            }}
-          >
-            {() => (
-              <Form className="space-y-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                  {/* Left Column */}
-                  <div className="space-y-8">
-                    {/* Room Name */}
-                    <div className="space-y-3">
-                      <Label
-                        htmlFor="name"
-                        className="text-white font-medium text-base"
-                      >
-                        Room Name *
-                      </Label>
-                      <Field
-                        name="name"
-                        as={Input}
-                        placeholder="Enter room name"
-                        className="h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-lg"
-                      />
-                      <ErrorMessage
-                        name="name"
-                        component="div"
-                        className="text-sm text-red-400"
-                      />
+          <Card className="border-border shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-2xl text-foreground">Detail Kamar</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Formik<RoomFormValues>
+                initialValues={{
+                  name: "",
+                  capacity: 1,
+                  price: 0,
+                  description: "",
+                  property: "",
+                  limit: 1,
+                  images: [],
+                }}
+                validationSchema={validationSchema}
+                onSubmit={async (values, { resetForm }) => {
+                  setSubmitting(true)
+                  try {
+                    const formData = new FormData()
+                    formData.append("name", values.name)
+                    formData.append("capacity", values.capacity.toString())
+                    formData.append("price", values.price.toString())
+                    formData.append("description", values.description)
+                    formData.append("property", values.property)
+                    formData.append("limit", values.limit.toString())
+
+                    values.images.forEach((file) => {
+                      formData.append("images", file)
+                    })
+
+                    await createRoom.mutateAsync(formData)
+                    resetForm()
+                  } catch (err) {
+                    console.error("Error creating room:", err)
+                  } finally {
+                    setSubmitting(false)
+                  }
+                }}
+              >
+                {({ setFieldValue, values }) => (
+                  <Form className="space-y-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                      {/* LEFT COLUMN */}
+                      <div className="space-y-6">
+                        <Card className="p-6 bg-card border-border">
+                          <h3 className="text-lg font-semibold text-foreground mb-4">Informasi Dasar</h3>
+                          <div className="space-y-6">
+                            {/* Name */}
+                            <div className="space-y-2">
+                              <Label htmlFor="name" className="text-sm font-semibold text-foreground">
+                                Nama Kamar *
+                              </Label>
+                              <Field
+                                name="name"
+                                as={Input}
+                                placeholder="Masukkan nama kamar"
+                                className="bg-background border-input focus:ring-primary focus:border-primary"
+                              />
+                              <ErrorMessage name="name" component="div" className="text-sm text-destructive" />
+                            </div>
+
+                            {/* Capacity */}
+                            <div className="space-y-2">
+                              <Label htmlFor="capacity" className="text-sm font-semibold text-foreground">
+                                Kapasitas *
+                              </Label>
+                              <Field
+                                name="capacity"
+                                type="number"
+                                as={Input}
+                                min="1"
+                                className="bg-background border-input focus:ring-primary focus:border-primary"
+                              />
+                              <ErrorMessage name="capacity" component="div" className="text-sm text-destructive" />
+                            </div>
+
+                            {/* Price */}
+                            <div className="space-y-2">
+                              <Label htmlFor="price" className="text-sm font-semibold text-foreground">
+                                Harga *
+                              </Label>
+                              <Field
+                                name="price"
+                                type="number"
+                                as={Input}
+                                min="0"
+                                className="bg-background border-input focus:ring-primary focus:border-primary"
+                              />
+                              <ErrorMessage name="price" component="div" className="text-sm text-destructive" />
+                            </div>
+
+                            {/* Stock */}
+                            <div className="space-y-2">
+                              <Label htmlFor="limit" className="text-sm font-semibold text-foreground">
+                                Batas Stok *
+                              </Label>
+                              <Field
+                                name="limit"
+                                type="number"
+                                as={Input}
+                                min="1"
+                                className="bg-background border-input focus:ring-primary focus:border-primary"
+                              />
+                              <ErrorMessage name="limit" component="div" className="text-sm text-destructive" />
+                            </div>
+                          </div>
+                        </Card>
+
+                        {/* Images Upload */}
+                        <Card className="p-6 bg-card border-border">
+                          <h3 className="text-lg font-semibold text-foreground mb-4">Gambar Kamar</h3>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="images" className="text-sm font-semibold text-foreground">
+                                Upload Gambar *
+                              </Label>
+                              <Input
+                                id="images"
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                className="bg-background border-input file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 hover:file:bg-primary/90"
+                                onChange={(e) => {
+                                  if (e.currentTarget.files) {
+                                    const newFiles = Array.from(e.currentTarget.files)
+                                    setFieldValue("images", [...values.images, ...newFiles])
+                                  }
+                                  e.currentTarget.value = ""
+                                }}
+                              />
+                              <ErrorMessage name="images" component="div" className="text-sm text-destructive" />
+                            </div>
+
+                            {/* Preview */}
+                            {values.images.length > 0 && (
+                              <div className="grid grid-cols-3 gap-3">
+                                {values.images.map((file, idx) => (
+                                  <div key={idx} className="relative group">
+                                    <img
+                                      src={URL.createObjectURL(file) || "/placeholder.svg"}
+                                      alt="preview"
+                                      className="w-full h-24 object-cover rounded-lg border border-border"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = values.images.filter((_, i) => i !== idx)
+                                        setFieldValue("images", updated)
+                                      }}
+                                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground text-xs w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      </div>
+
+                      {/* RIGHT COLUMN */}
+                      <div className="space-y-6">
+                        <Card className="p-6 bg-card border-border">
+                          <h3 className="text-lg font-semibold text-foreground mb-4">Detail Properti</h3>
+                          <div className="space-y-6">
+                            {/* Property */}
+                            <div className="space-y-2">
+                              <Label htmlFor="property" className="text-sm font-semibold text-foreground">
+                                Properti *
+                              </Label>
+                              <Field name="property">
+                                {({ field, form }: any) => (
+                                  <Select
+                                    value={field.value}
+                                    onValueChange={(value) => form.setFieldValue("property", value)}
+                                  >
+                                    <SelectTrigger className="bg-background border-input focus:ring-primary focus:border-primary">
+                                      <SelectValue placeholder={loadingProperties ? "Memuat..." : "Pilih properti"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {properties.map((p) => (
+                                        <SelectItem key={p.id} value={String(p.id)}>
+                                          {p.title}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </Field>
+                              <ErrorMessage name="property" component="div" className="text-sm text-destructive" />
+                            </div>
+
+                            {/* Description */}
+                            <div className="space-y-2">
+                              <Label htmlFor="description" className="text-sm font-semibold text-foreground">
+                                Deskripsi *
+                              </Label>
+                              <Field name="description">
+                                {({ field }: any) => (
+                                  <Textarea
+                                    {...field}
+                                    rows={8}
+                                    placeholder="Masukkan deskripsi kamar..."
+                                    className="bg-background border-input focus:ring-primary focus:border-primary resize-none"
+                                  />
+                                )}
+                              </Field>
+                              <ErrorMessage name="description" component="div" className="text-sm text-destructive" />
+                            </div>
+                          </div>
+                        </Card>
+                      </div>
                     </div>
 
-                    {/* Capacity */}
-                    <div className="space-y-3">
-                      <Label
-                        htmlFor="capacity"
-                        className="text-white font-medium text-base"
+                    {/* Submit */}
+                    <div className="flex justify-end pt-6 border-t border-border">
+                      <Button
+                        type="submit"
+                        disabled={submitting || loadingProperties}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 font-semibold"
                       >
-                        Capacity *
-                      </Label>
-                      <Field
-                        name="capacity"
-                        type="number"
-                        as={Input}
-                        placeholder="Enter capacity"
-                        min="1"
-                        className="h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-lg"
-                      />
-                      <ErrorMessage
-                        name="capacity"
-                        component="div"
-                        className="text-sm text-red-400"
-                      />
+                        {submitting ? "Membuat..." : "Buat Kamar"}
+                      </Button>
                     </div>
-
-                    {/* Price */}
-                    <div className="space-y-3">
-                      <Label
-                        htmlFor="price"
-                        className="text-white font-medium text-base"
-                      >
-                        Price (per night) *
-                      </Label>
-                      <Field
-                        name="price"
-                        type="number"
-                        as={Input}
-                        placeholder="Enter price"
-                        min="0"
-                        className="h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-lg"
-                      />
-                      <ErrorMessage
-                        name="price"
-                        component="div"
-                        className="text-sm text-red-400"
-                      />
-                    </div>
-
-                    {/* Stock Limit */}
-                    <div className="space-y-3">
-                      <Label
-                        htmlFor="limit"
-                        className="text-white font-medium text-base"
-                      >
-                        Stock Limit *
-                      </Label>
-                      <Field
-                        name="limit"
-                        type="number"
-                        as={Input}
-                        placeholder="Enter stock limit"
-                        min="1"
-                        className="h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-lg"
-                      />
-                      <ErrorMessage
-                        name="limit"
-                        component="div"
-                        className="text-sm text-red-400"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Right Column */}
-                  <div className="space-y-8">
-                    {/* Property Selection */}
-                    <div className="space-y-3">
-                      <Label
-                        htmlFor="property"
-                        className="text-white font-medium text-base"
-                      >
-                        Property *
-                      </Label>
-                      <Field
-                        as="select"
-                        name="property"
-                        className="h-12 w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 appearance-none"
-                      >
-                        <option value="" className="bg-gray-900">
-                          {loadingProperties
-                            ? "Loading properties..."
-                            : "Select property"}
-                        </option>
-                        {!loadingProperties && properties.length === 0 && (
-                          <option disabled className="bg-gray-900">
-                            No properties found
-                          </option>
-                        )}
-                        {properties.map((property) => (
-                          <option
-                            key={property.id}
-                            value={String(property.id)}
-                            className="bg-gray-900"
-                          >
-                            {property.title}
-                          </option>
-                        ))}
-                      </Field>
-                      <ErrorMessage
-                        name="property"
-                        component="div"
-                        className="text-sm text-red-400"
-                      />
-                    </div>
-
-                    {/* Description */}
-                    <div className="space-y-3">
-                      <Label
-                        htmlFor="description"
-                        className="text-white font-medium text-base"
-                      >
-                        Room Description *
-                      </Label>
-                      <Field
-                        name="description"
-                        as="textarea"
-                        rows={8}
-                        placeholder="Describe your room..."
-                        className="w-full resize-none rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-                      />
-                      <ErrorMessage
-                        name="description"
-                        component="div"
-                        className="text-sm text-red-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <div className="flex justify-end pt-8 border-t border-gray-700">
-                  <div className="flex gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="px-8 py-3 border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
-                    >
-                      Save as Draft
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={submitting || loadingProperties}
-                      className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {submitting ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Creating Room...
-                        </>
-                      ) : (
-                        "Create Room"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </Form>
-            )}
-          </Formik>
+                  </Form>
+                )}
+              </Formik>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
-  );
-};
+  )
+}
 
-export default CreateRoom;
+export default CreateRoom

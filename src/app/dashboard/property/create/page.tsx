@@ -7,7 +7,11 @@ const DashboardCreateProperty = async () => {
 
   if (!session?.user) return redirect(`/login`);
 
-  return <CreateProperty />;
+  return (
+    <div>
+      <CreateProperty />
+    </div>
+  );
 };
 
 export default DashboardCreateProperty;

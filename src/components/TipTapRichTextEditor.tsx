@@ -21,7 +21,7 @@ const TiptapRichtextEditor: FC<TiptapRichtextEditorProps> = ({
 
   const editor = useEditor({
     extensions: [StarterKit],
-    content: values[name],
+    content: values[name],  // Uses Formik's context value
     immediatelyRender: false,
     editorProps: {
       attributes: {
@@ -30,7 +30,7 @@ const TiptapRichtextEditor: FC<TiptapRichtextEditorProps> = ({
       },
     },
     onUpdate: ({ editor }) => {
-      setFieldValue(name, editor.getHTML());
+      setFieldValue(name, editor.getHTML());  // Updates Formik's value on content change
     },
     onFocus: () => {
       setFieldTouched(name, true);
@@ -51,5 +51,6 @@ const TiptapRichtextEditor: FC<TiptapRichtextEditorProps> = ({
     </div>
   );
 };
+
 
 export default TiptapRichtextEditor;

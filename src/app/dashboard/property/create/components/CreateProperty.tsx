@@ -4,39 +4,52 @@ import { useState, type ChangeEvent } from "react"
 import { Formik, Field, Form, ErrorMessage } from "formik"
 import * as Yup from "yup"
 import Image from "next/image"
-import { Trash, Upload } from "lucide-react"
+import { Trash, Upload, Building, Plus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Card } from "@/components/ui/card"
+import dynamic from "next/dynamic"
 import useCreateProperty from "../_hooks/useCreateProperty"
-import TiptapRichtextEditor from "@/components/TipTapRichTextEditor"
+
+const TiptapRichtextEditor = dynamic(() => import("@/components/TipTapRichTextEditor"), {
+  ssr: false,
+})
 
 interface FormValues {
   title: string
   category: string
+  location: string
   city: string
   address: string
-  location: string
-  latitude: string
-  longtitude: string // Keep as string for form input, will be converted to number in backend
   description: string
+  latitude: string
+  longtitude: string // Keep original spelling to match user's interface
   thumbnail: File | null
+  propertyImages: File[] // Add multiple property images
+  facilities: { title: string }[] // Add facilities array
 }
 
 const validationSchema = Yup.object().shape({
-  title: Yup.string().required("Title is required"),
-  category: Yup.string().required("Category is required"),
-  city: Yup.string().required("City is required"),
-  address: Yup.string().required("Address is required"),
-  location: Yup.string().required("Location is required"),
-  latitude: Yup.string()
-    .required("Latitude is required")
-    .matches(/^-?([1-8]?[1-9]|[1-9]0)\.{1}\d{1,6}$/, "Please enter a valid latitude"),
-  longtitude: Yup.string()
-    .required("Longitude is required")
-    .matches(/^-?((1[0-7]|[1-9])?[0-9]\.{1}\d{1,6}$|180\.{1}0{1,6}$)/, "Please enter a valid longitude"),
-  description: Yup.string().required("Description is required"),
-  thumbnail: Yup.mixed().required("Thumbnail is required"),
+  title: Yup.string().required("Judul properti wajib diisi"),
+  category: Yup.string().required("Kategori wajib dipilih"),
+  location: Yup.string().required("Provinsi wajib dipilih"),
+  city: Yup.string().required("Kota wajib diisi"),
+  address: Yup.string().required("Alamat wajib diisi"),
+  description: Yup.string().required("Deskripsi wajib diisi"),
+  latitude: Yup.string().required("Latitude wajib diisi"),
+  longtitude: Yup.string().required("Longitude wajib diisi"), // Keep original spelling
+  thumbnail: Yup.mixed().required("Foto properti wajib diupload"),
+  propertyImages: Yup.array().of(Yup.mixed()).min(1, "Minimal satu foto properti tambahan"), // Add validation for property images
+  facilities: Yup.array()
+    .of(
+      // Add validation for facilities
+      Yup.object().shape({
+        title: Yup.string().required("Nama fasilitas wajib diisi"),
+      }),
+    )
+    .min(1, "Minimal satu fasilitas"),
 })
 
 const CreateProperty = () => {
@@ -60,31 +73,40 @@ const CreateProperty = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background">
       <main className="container mx-auto px-6 py-12">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-12">
-            <h1 className="text-4xl font-bold text-white mb-2">
-              Create <span className="text-orange-500">Property</span>
-            </h1>
-            <p className="text-gray-400 text-lg">Fill in the details to create your new property</p>
+          <div className="mb-12 p-8 bg-card border border-border rounded-xl shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Building className="h-8 w-8 text-primary" />
+              </div>
+              <h1 className="text-4xl font-bold text-foreground">
+                Buat <span className="text-primary">Properti</span>
+              </h1>
+            </div>
+            <p className="text-muted-foreground text-lg">
+              Isi detail untuk membuat properti baru Anda dan mulai menyewakan
+            </p>
           </div>
 
           <Formik<FormValues>
             initialValues={{
               title: "",
               category: "",
+              location: "",
               city: "",
               address: "",
-              location: "",
-              latitude: "",
-              longtitude: "",
               description: "",
+              latitude: "",
+              longtitude: "", // Keep original spelling
               thumbnail: null,
+              propertyImages: [], // Add property images array
+              facilities: [{ title: "" }], // Start with one empty facility
             }}
             validationSchema={validationSchema}
             onSubmit={async (values) => {
-              // Only pass thumbnail if it exists (matches the Payload interface)
+              console.log("[v0] Form submitted with values:", values)
               const payload = {
                 title: values.title,
                 category: values.category,
@@ -94,212 +116,360 @@ const CreateProperty = () => {
                 latitude: values.latitude,
                 longtitude: values.longtitude,
                 description: values.description,
-                ...(values.thumbnail && { thumbnail: values.thumbnail }), // Only include if not null
+                ...(values.thumbnail && { thumbnail: values.thumbnail }),
+                ...(values.propertyImages.length > 0 && { propertyImages: values.propertyImages }),
+                ...(values.facilities.length > 0 && { facilities: values.facilities }),
               }
               await createProperty(payload)
             }}
           >
-            {({ setFieldValue }) => (
+            {({ setFieldValue, values }) => (
               <Form className="space-y-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                  {/* Left Column */}
-                  <div className="space-y-8">
-                    {/* Property Title */}
-                    <div className="space-y-3">
-                      <Label htmlFor="title" className="text-white font-medium text-base">
-                        Property Title *
-                      </Label>
-                      <Field
-                        name="title"
-                        as={Input}
-                        placeholder="Enter property title"
-                        className="h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-lg"
-                      />
-                      <ErrorMessage name="title" component="div" className="text-sm text-red-400" />
-                    </div>
-
-                    {/* Category */}
-                    <div className="space-y-3">
-                      <Label htmlFor="category" className="text-white font-medium text-base">
-                        Category *
-                      </Label>
-                      <Field
-                        as="select"
-                        name="category"
-                        className="h-12 w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-3 text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 appearance-none"
-                      >
-                        <option value="" className="bg-gray-900">Select category</option>
-                        <option value="house" className="bg-gray-900">House</option>
-                        <option value="apartment" className="bg-gray-900">Apartment</option>
-                        <option value="villa" className="bg-gray-900">Villa</option>
-                        <option value="office" className="bg-gray-900">Office</option>
-                        <option value="land" className="bg-gray-900">Land</option>
-                      </Field>
-                      <ErrorMessage name="category" component="div" className="text-sm text-red-400" />
-                    </div>
-
-                    {/* City */}
-                    <div className="space-y-3">
-                      <Label htmlFor="city" className="text-white font-medium text-base">
-                        City *
-                      </Label>
-                      <Field
-                        name="city"
-                        as={Input}
-                        placeholder="Enter city"
-                        className="h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-lg"
-                      />
-                      <ErrorMessage name="city" component="div" className="text-sm text-red-400" />
-                    </div>
-
-                    {/* Address */}
-                    <div className="space-y-3">
-                      <Label htmlFor="address" className="text-white font-medium text-base">
-                        Address *
-                      </Label>
-                      <Field
-                        name="address"
-                        as={Input}
-                        placeholder="Enter full address"
-                        className="h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-lg"
-                      />
-                      <ErrorMessage name="address" component="div" className="text-sm text-red-400" />
-                    </div>
-
-                    {/* Location */}
-                    <div className="space-y-3">
-                      <Label htmlFor="location" className="text-white font-medium text-base">
-                        Location *
-                      </Label>
-                      <Field
-                        name="location"
-                        as={Input}
-                        placeholder="Enter location/area"
-                        className="h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-lg"
-                      />
-                      <ErrorMessage name="location" component="div" className="text-sm text-red-400" />
-                    </div>
-
-                    {/* Latitude & Longitude */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-card border border-border rounded-xl p-8 shadow-sm">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    {/* Left Column */}
+                    <div className="space-y-8">
+                      {/* Property Title */}
                       <div className="space-y-3">
-                        <Label htmlFor="latitude" className="text-white font-medium text-base">
-                          Latitude *
+                        <Label htmlFor="title" className="text-foreground font-semibold text-base">
+                          Judul Properti *
                         </Label>
                         <Field
-                          name="latitude"
+                          name="title"
                           as={Input}
-                          placeholder="e.g., -6.2088"
-                          className="h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-lg"
+                          placeholder="Masukkan judul properti yang menarik"
+                          className="h-12 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all"
                         />
-                        <ErrorMessage name="latitude" component="div" className="text-sm text-red-400" />
+                        <ErrorMessage name="title" component="div" className="text-sm text-destructive" />
                       </div>
+
+                      {/* Category */}
                       <div className="space-y-3">
-                        <Label htmlFor="longtitude" className="text-white font-medium text-base">
-                          Longitude *
+                        <Label htmlFor="category" className="text-foreground font-semibold text-base">
+                          Kategori *
                         </Label>
                         <Field
-                          name="longtitude"
-                          as={Input}
-                          placeholder="e.g., 106.8456"
-                          className="h-12 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 rounded-lg"
-                        />
-                        <ErrorMessage name="longtitude" component="div" className="text-sm text-red-400" />
+                          as="select"
+                          name="category"
+                          className="h-12 w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
+                        >
+                          <option value="" className="bg-background">
+                            Pilih kategori
+                          </option>
+                          <option value="rumah" className="bg-background">
+                            Rumah
+                          </option>
+                          <option value="apartemen" className="bg-background">
+                            Apartemen
+                          </option>
+                          <option value="villa" className="bg-background">
+                            Villa
+                          </option>
+                          <option value="kost" className="bg-background">
+                            Kost
+                          </option>
+                          <option value="kontrakan" className="bg-background">
+                            Kontrakan
+                          </option>
+                          <option value="ruko" className="bg-background">
+                            Ruko
+                          </option>
+                          <option value="kantor" className="bg-background">
+                            Kantor
+                          </option>
+                        </Field>
+                        <ErrorMessage name="category" component="div" className="text-sm text-destructive" />
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Right Column */}
-                  <div className="space-y-8">
-                    {/* Property Thumbnail */}
-                    <div className="space-y-3">
-                      <Label htmlFor="thumbnail" className="text-white font-medium text-base">
-                        Property Thumbnail *
-                      </Label>
-                      {previewImage ? (
-                        <div className="relative">
-                          <Image
-                            src={previewImage || "/placeholder.svg"}
-                            alt="Thumbnail preview"
-                            width={500}
-                            height={300}
-                            className="w-full h-64 rounded-lg object-cover border-2 border-gray-700"
+                      {/* Location */}
+                      <div className="space-y-3">
+                        <Label htmlFor="location" className="text-foreground font-semibold text-base">
+                          Provinsi *
+                        </Label>
+                        <Field
+                          as="select"
+                          name="location"
+                          className="h-12 w-full rounded-lg border border-border bg-background px-4 py-3 text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 appearance-none transition-all"
+                        >
+                          <option value="" className="bg-background">
+                            Pilih provinsi
+                          </option>
+                          <option value="jakarta" className="bg-background">
+                            DKI Jakarta
+                          </option>
+                          <option value="jawa-barat" className="bg-background">
+                            Jawa Barat
+                          </option>
+                          <option value="bali" className="bg-background">
+                            Bali
+                          </option>
+                          <option value="jawa-timur" className="bg-background">
+                            Jawa Timur
+                          </option>
+                          <option value="yogyakarta" className="bg-background">
+                            DI Yogyakarta
+                          </option>
+                          <option value="sumatera-utara" className="bg-background">
+                            Sumatera Utara
+                          </option>
+                        </Field>
+                        <ErrorMessage name="location" component="div" className="text-sm text-destructive" />
+                      </div>
+
+                      {/* City */}
+                      <div className="space-y-3">
+                        <Label htmlFor="city" className="text-foreground font-semibold text-base">
+                          Kota *
+                        </Label>
+                        <Field
+                          name="city"
+                          as={Input}
+                          placeholder="Masukkan nama kota"
+                          className="h-12 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all"
+                        />
+                        <ErrorMessage name="city" component="div" className="text-sm text-destructive" />
+                      </div>
+
+                      {/* Address */}
+                      <div className="space-y-3">
+                        <Label htmlFor="address" className="text-foreground font-semibold text-base">
+                          Alamat Lengkap *
+                        </Label>
+                        <Field
+                          name="address"
+                          as={Textarea}
+                          placeholder="Masukkan alamat lengkap properti"
+                          className="min-h-[100px] bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg resize-none transition-all"
+                        />
+                        <ErrorMessage name="address" component="div" className="text-sm text-destructive" />
+                      </div>
+
+                      {/* Coordinates */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <Label htmlFor="latitude" className="text-foreground font-semibold text-base">
+                            Latitude *
+                          </Label>
+                          <Field
+                            name="latitude"
+                            as={Input}
+                            placeholder="-6.2088"
+                            className="h-12 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all"
                           />
-                          <Button
-                            size="icon"
-                            type="button"
-                            className="absolute top-3 right-3 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg"
-                            onClick={() => handleRemoveThumbnail(setFieldValue)}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+                          <ErrorMessage name="latitude" component="div" className="text-sm text-destructive" />
                         </div>
-                      ) : (
-                        <div className="border-2 border-dashed border-gray-700 rounded-lg p-12 text-center hover:border-orange-500 transition-colors">
-                          <div className="space-y-4">
-                            <div className="mx-auto w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center">
-                              <Upload className="h-8 w-8 text-gray-400" />
+                        <div className="space-y-3">
+                          <Label htmlFor="longtitude" className="text-foreground font-semibold text-base">
+                            Longitude *
+                          </Label>
+                          <Field
+                            name="longtitude"
+                            as={Input}
+                            placeholder="106.8456"
+                            className="h-12 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all"
+                          />
+                          <ErrorMessage name="longtitude" component="div" className="text-sm text-destructive" />
+                        </div>
+                      </div>
+
+                      <Card className="p-6 bg-background border-border">
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <Label className="text-foreground font-semibold text-base">Fasilitas Properti *</Label>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                setFieldValue("facilities", [...values.facilities, { title: "" }])
+                              }}
+                              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Tambah Fasilitas
+                            </Button>
+                          </div>
+
+                          {values.facilities.map((facility, index) => (
+                            <div key={index} className="flex gap-3 items-start">
+                              <div className="flex-1">
+                                <Field
+                                  name={`facilities.${index}.title`}
+                                  as={Input}
+                                  placeholder="Contoh: Kolam Renang, Parkir, WiFi"
+                                  className="h-12 bg-background border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all"
+                                />
+                                <ErrorMessage
+                                  name={`facilities.${index}.title`}
+                                  component="div"
+                                  className="text-sm text-destructive mt-1"
+                                />
+                              </div>
+                              {values.facilities.length > 1 && (
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const updated = values.facilities.filter((_, i) => i !== index)
+                                    setFieldValue("facilities", updated)
+                                  }}
+                                  className="mt-0 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
-                            <div>
-                              <Input
-                                type="file"
-                                name="thumbnail"
-                                accept="image/*"
-                                onChange={(e) => handleThumbnailChange(e, setFieldValue)}
-                                className="hidden"
-                                id="thumbnail-upload"
-                              />
-                              <label
-                                htmlFor="thumbnail-upload"
-                                className="inline-flex items-center px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg cursor-pointer font-medium transition-colors"
-                              >
-                                Choose Image
-                              </label>
-                              <p className="text-gray-400 text-sm mt-2">
-                                Upload property thumbnail (JPG, PNG, GIF up to 10MB)
-                              </p>
+                          ))}
+                        </div>
+                      </Card>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="space-y-8">
+                      {/* Property Thumbnail */}
+                      <div className="space-y-3">
+                        <Label htmlFor="thumbnail" className="text-foreground font-semibold text-base">
+                          Foto Utama Properti *
+                        </Label>
+                        {previewImage ? (
+                          <div className="relative group">
+                            <Image
+                              src={previewImage || "/placeholder.svg"}
+                              alt="Thumbnail preview"
+                              width={500}
+                              height={300}
+                              className="w-full h-64 rounded-lg object-cover border-2 border-border transition-all group-hover:border-primary/50"
+                            />
+                            <Button
+                              size="icon"
+                              type="button"
+                              className="absolute top-3 right-3 rounded-full bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleRemoveThumbnail(setFieldValue)}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary hover:bg-primary/5 transition-all">
+                            <div className="space-y-4">
+                              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                                <Upload className="h-8 w-8 text-primary" />
+                              </div>
+                              <div>
+                                <Input
+                                  type="file"
+                                  name="thumbnail"
+                                  accept="image/*"
+                                  onChange={(e) => handleThumbnailChange(e, setFieldValue)}
+                                  className="hidden"
+                                  id="thumbnail-upload"
+                                />
+                                <label
+                                  htmlFor="thumbnail-upload"
+                                  className="inline-flex items-center px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg cursor-pointer font-semibold transition-colors shadow-sm"
+                                >
+                                  Pilih Gambar
+                                </label>
+                                <p className="text-muted-foreground text-sm mt-2">
+                                  Upload foto utama properti (JPG, PNG, GIF maksimal 10MB)
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                      <ErrorMessage name="thumbnail" component="div" className="text-sm text-red-400" />
-                    </div>
-
-                    {/* Property Description */}
-                    <div className="space-y-3">
-                      <Label className="text-white font-medium text-base">Property Description *</Label>
-                      <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
-                        <TiptapRichtextEditor name="description" label="" />
+                        )}
+                        <ErrorMessage name="thumbnail" component="div" className="text-sm text-destructive" />
                       </div>
-                      <ErrorMessage name="description" component="div" className="text-sm text-red-400" />
+
+                      <Card className="p-6 bg-background border-border">
+                        <div className="space-y-4">
+                          <Label className="text-foreground font-semibold text-base">Foto Properti Tambahan *</Label>
+                          <div className="space-y-4">
+                            <Input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              className="bg-background border-border text-foreground file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 hover:file:bg-primary/90"
+                              onChange={(e) => {
+                                if (e.currentTarget.files) {
+                                  const newFiles = Array.from(e.currentTarget.files)
+                                  setFieldValue("propertyImages", [...values.propertyImages, ...newFiles])
+                                }
+                                e.currentTarget.value = ""
+                              }}
+                            />
+                            <ErrorMessage name="propertyImages" component="div" className="text-sm text-destructive" />
+                          </div>
+
+                          {/* Preview Property Images */}
+                          {values.propertyImages.length > 0 && (
+                            <div className="grid grid-cols-3 gap-3">
+                              {values.propertyImages.map((file, idx) => (
+                                <div key={idx} className="relative group">
+                                  <Image
+                                    src={URL.createObjectURL(file) || "/placeholder.svg"}
+                                    alt="Property preview"
+                                    width={150}
+                                    height={100}
+                                    className="w-full h-24 object-cover rounded-lg border border-border"
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    onClick={() => {
+                                      const updated = values.propertyImages.filter((_, i) => i !== idx)
+                                      setFieldValue("propertyImages", updated)
+                                    }}
+                                    className="absolute -top-2 -right-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+
+                      {/* Property Description */}
+                      <div className="space-y-3">
+                        <Label className="text-foreground font-semibold text-base">Deskripsi Properti *</Label>
+                        <div className="bg-background border border-border rounded-lg overflow-hidden focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                          <TiptapRichtextEditor name="description" label="" />
+                        </div>
+                        <ErrorMessage name="description" component="div" className="text-sm text-destructive" />
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Submit Button */}
-                <div className="flex justify-end pt-8 border-t border-gray-700">
-                  <div className="flex gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="px-8 py-3 border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
-                    >
-                      Save as Draft
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={isPending}
-                      className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isPending ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Creating Property...
-                        </>
-                      ) : (
-                        "Create Property"
-                      )}
-                    </Button>
+                <div className="bg-card border border-border rounded-xl p-8 shadow-sm">
+                  <div className="flex justify-between items-center">
+                    <p className="text-muted-foreground">
+                      Pastikan semua informasi sudah benar sebelum mempublikasikan properti
+                    </p>
+                    <div className="flex gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="px-8 py-3 border-border text-muted-foreground hover:bg-muted hover:text-foreground bg-transparent font-semibold"
+                      >
+                        Simpan Draft
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={isPending}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                      >
+                        {isPending ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
+                            Membuat Properti...
+                          </>
+                        ) : (
+                          "Publikasikan Properti"
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </Form>

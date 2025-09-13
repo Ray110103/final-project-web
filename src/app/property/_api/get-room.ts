@@ -1,5 +1,5 @@
-import { Room } from "@/app/types/room";
 import { axiosInstance } from "@/lib/axios"; // pastikan ini konsisten
+import { Room } from "@/types/room";
 
 export const getRoomByProperty = async (propertyId: number): Promise<Room[]> => {
   try {
