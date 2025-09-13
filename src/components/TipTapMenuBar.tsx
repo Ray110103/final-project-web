@@ -14,27 +14,27 @@ const TiptapMenuBar: FC<TiptapMenuBarProps> = ({ editor }) => {
     {
       icon: <Heading1 className="size-4" />,
       onClick: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
-      preesed: editor.isActive("heading", { level: 1 }),
+      pressed: editor.isActive("heading", { level: 1 }), // Fixed: was "preesed"
     },
     {
       icon: <Heading2 className="size-4" />,
       onClick: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
-      preesed: editor.isActive("heading", { level: 2 }),
+      pressed: editor.isActive("heading", { level: 2 }), // Fixed: was "preesed"
     },
     {
       icon: <Heading3 className="size-4" />,
       onClick: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
-      preesed: editor.isActive("heading", { level: 3 }),
+      pressed: editor.isActive("heading", { level: 3 }), // Fixed: was "preesed"
     },
     {
       icon: <Bold className="size-4" />,
       onClick: () => editor.chain().focus().toggleBold().run(),
-      preesed: editor.isActive("bold"),
+      pressed: editor.isActive("bold"), // Fixed: was "preesed"
     },
     {
       icon: <Italic className="size-4" />,
       onClick: () => editor.chain().focus().toggleItalic().run(),
-      preesed: editor.isActive("italic"),
+      pressed: editor.isActive("italic"), // Fixed: was "preesed"
     },
   ];
 
@@ -43,7 +43,7 @@ const TiptapMenuBar: FC<TiptapMenuBarProps> = ({ editor }) => {
       {options.map((option, index) => (
         <Toggle
           key={index}
-          pressed={option.preesed}
+          pressed={option.pressed} // This was receiving undefined due to typo
           onPressedChange={option.onClick}
         >
           {option.icon}

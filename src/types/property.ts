@@ -16,6 +16,8 @@ export interface Property {
   updatedAt: string;
   tenantId: string;
   rooms?: Room[]
+  facilities?: { title: string }[]; // ✅ Add for facilities
+  images?: PropertyImage[]; // Add for multiple property images
 }
 
 
@@ -25,3 +27,12 @@ export interface PropertyAvailability {
   stock: number;
   booked: boolean;
 }
+
+export interface PropertyImage {
+  id: number;
+  url: string;
+  propertyId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+

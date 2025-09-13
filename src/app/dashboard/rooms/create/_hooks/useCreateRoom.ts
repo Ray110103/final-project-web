@@ -9,9 +9,9 @@ interface RoomPayload {
   capacity: number;
   price: number;
   description: string;
-  property: string; // Changed from propertyId to property (slug)
+  property: string; // slug / id
   limit: number;
-  thumbnail?: File | null; // optional, if you add image upload later
+  images?: File[];
 }
 
 const useCreateRoom = () => {
@@ -20,39 +20,38 @@ const useCreateRoom = () => {
   const { data: session } = useSession();
 
   return useMutation({
-    mutationFn: async (payload: RoomPayload) => {
+    mutationFn: async (payload: RoomPayload | FormData) => {
       if (!session?.user.accessToken) {
         throw new Error("Access token is missing or expired");
       }
 
-      // Use FormData for consistency with your backend
-      const form = new FormData();
-      form.append("name", payload.name);
-      form.append("capacity", String(payload.capacity));
-      form.append("price", String(payload.price));
-      form.append("description", payload.description);
-      form.append("property", payload.property); // This is the slug
-      form.append("limit", String(payload.limit));
+      let form: FormData;
 
-      if (payload.thumbnail) {
-        form.append("thumbnail", payload.thumbnail);
+      if (payload instanceof FormData) {
+        // ✅ Kalau dari component sudah kirim FormData langsung
+        form = payload;
+      } else {
+        // ✅ Kalau masih berupa object, ubah ke FormData
+        form = new FormData();
+        form.append("name", payload.name);
+        form.append("capacity", String(payload.capacity));
+        form.append("price", String(payload.price));
+        form.append("description", payload.description);
+        form.append("property", payload.property);
+        form.append("limit", String(payload.limit));
+
+        if (payload.images && payload.images.length > 0) {
+          payload.images.forEach((file) => {
+            form.append("images", file);
+          });
+        }
       }
-
-      // Debug log
-      console.log("Creating room with payload:", {
-        name: payload.name,
-        capacity: payload.capacity,
-        price: payload.price,
-        description: payload.description,
-        property: payload.property,
-        limit: payload.limit
-      });
 
       try {
         const response = await axiosInstance.post("/rooms", form, {
           headers: {
-            Authorization: `Bearer ${session?.user.accessToken}`,
-            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${session.user.accessToken}`,
+            // ❌ jangan set Content-Type manual, biar browser yang atur
           },
         });
 
@@ -67,9 +66,11 @@ const useCreateRoom = () => {
       await queryClient.invalidateQueries({ queryKey: ["rooms"] });
       router.push("/dashboard");
     },
-    onError: (error: AxiosError<{ message: string; code: number }>) => {
+    onError: (error: AxiosError<{ message?: string; code?: number }>) => {
       console.error("Error creating room:", error);
-      const errorMessage = error.response?.data?.message || "Something went wrong while creating the room.";
+      const errorMessage =
+        error.response?.data?.message ||
+        "Something went wrong while creating the room.";
       alert(errorMessage);
     },
   });

@@ -53,7 +53,7 @@ const sidebarGroups = [
 			
 			{
 				title: "Properties",
-				href: "/dashboard/property",
+				href: "/dashboard/property/property-list",
 				icon: Settings,
 				badge: null,
 			},
