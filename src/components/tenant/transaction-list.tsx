@@ -1,6 +1,5 @@
 // src/components/tenant/transaction-list.tsx
 "use client";
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { Transaction, TransactionStatus } from '@/types/transaction';
-import { updateTransaction, cancelTransaction, sendReminderEmail } from '@/lib/transaction-service';
+import { useUpdateTransaction, useCancelTransaction, useSendReminderEmail } from '@/lib/transaction-service';
 
 interface TransactionListProps {
   transactionsData: any;
@@ -71,9 +70,13 @@ export function TransactionList({
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<"ACCEPT" | "REJECT" | "CANCEL">("ACCEPT");
-  const [isActionLoading, setIsActionLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
+  
+  // Initialize hooks
+  const updateTransaction = useUpdateTransaction();
+  const cancelTransaction = useCancelTransaction();
+  const sendReminderEmail = useSendReminderEmail();
+  
   // Format date to readable format
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -120,60 +123,36 @@ export function TransactionList({
   };
 
   // Handle transaction action (accept, reject, cancel)
-  const handleTransactionAction = async () => {
+  const handleTransactionAction = () => {
     if (!selectedTransaction) return;
     
-    setIsActionLoading(true);
-    
-    try {
-      if (actionType === "CANCEL") {
-        await cancelTransaction(selectedTransaction.uuid);
-        setToastMessage({ message: "Transaction cancelled successfully", type: "success" });
-      } else {
-        await updateTransaction(selectedTransaction.uuid, actionType);
-        setToastMessage({ 
-          message: `Transaction ${actionType === "ACCEPT" ? "accepted" : "rejected"} successfully`, 
-          type: "success" 
-        });
-      }
-      
-      // Close dialogs
-      setIsConfirmDialogOpen(false);
-      setIsCancelDialogOpen(false);
-      setSelectedTransaction(null);
-      
-      // Refetch data
-      refetch();
-    } catch (error) {
-      console.error("Error updating transaction:", error);
-      setToastMessage({ 
-        message: `Failed to ${actionType === "ACCEPT" ? "accept" : actionType === "REJECT" ? "reject" : "cancel"} transaction`, 
-        type: "error" 
+    if (actionType === "CANCEL") {
+      cancelTransaction.mutate( { 
+        uuid: selectedTransaction.uuid, 
+        type: "CANCELLED"
       });
-    } finally {
-      setIsActionLoading(false);
+    } else {
+      updateTransaction.mutate({ 
+        uuid: selectedTransaction.uuid, 
+        type: actionType 
+      });
     }
+    
+    // Close dialogs
+    setIsConfirmDialogOpen(false);
+    setIsCancelDialogOpen(false);
+    setSelectedTransaction(null);
   };
   
   // Handle sending reminder email
-  const handleSendReminder = async () => {
+  const handleSendReminder = () => {
     if (!selectedTransaction) return;
     
-    setIsActionLoading(true);
+    sendReminderEmail.mutate(selectedTransaction.uuid);
     
-    try {
-      await sendReminderEmail(selectedTransaction.uuid);
-      setToastMessage({ message: "Reminder email sent successfully", type: "success" });
-      
-      // Close dialog
-      setIsReminderDialogOpen(false);
-      setSelectedTransaction(null);
-    } catch (error) {
-      console.error("Error sending reminder:", error);
-      setToastMessage({ message: "Failed to send reminder email", type: "error" });
-    } finally {
-      setIsActionLoading(false);
-    }
+    // Close dialog
+    setIsReminderDialogOpen(false);
+    setSelectedTransaction(null);
   };
   
   // Open confirmation dialog for action
@@ -200,14 +179,24 @@ export function TransactionList({
     setIsDetailsDialogOpen(true);
   };
 
-  // Filter transactions based on search term
-  const filteredTransactions = transactionsData?.data?.filter((transaction: Transaction) => 
-    searchTerm === "" ||
+// src/components/tenant/transaction-list.tsx
+
+// src/components/tenant/transaction-list.tsx
+
+// Update the filteredTransactions function to this:
+const filteredTransactions = transactionsData?.data?.filter((transaction: Transaction) => {
+  // Apply search filter
+  const matchesSearch = searchTerm === "" ||
     transaction.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     transaction.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     transaction.uuid.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    transaction.room.property?.title.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+    transaction.room.property?.title.toLowerCase().includes(searchTerm.toLowerCase());
+  
+  // Apply status filter - when "ALL" is selected, include all statuses
+  const matchesStatus = statusFilter === "ALL" || transaction.status === statusFilter;
+  
+  return matchesSearch && matchesStatus;
+}) || [];
 
   return (
     <div className="space-y-6">
@@ -481,10 +470,10 @@ export function TransactionList({
             </Button>
             <Button
               onClick={handleTransactionAction}
-              disabled={isActionLoading}
+              disabled={updateTransaction.isPending}
               variant={actionType === "ACCEPT" ? "default" : "destructive"}
             >
-              {isActionLoading ? "Processing..." : actionType === "ACCEPT" ? "Accept" : "Reject"}
+              {updateTransaction.isPending ? "Processing..." : actionType === "ACCEPT" ? "Accept" : "Reject"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -543,10 +532,10 @@ export function TransactionList({
             </Button>
             <Button
               onClick={handleTransactionAction}
-              disabled={isActionLoading}
+              disabled={cancelTransaction.isPending}
               variant="destructive"
             >
-              {isActionLoading ? "Processing..." : "Yes, Cancel Order"}
+              {cancelTransaction.isPending ? "Processing..." : "Yes, Cancel Order"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -593,9 +582,9 @@ export function TransactionList({
             </Button>
             <Button
               onClick={handleSendReminder}
-              disabled={isActionLoading}
+              disabled={sendReminderEmail.isPending}
             >
-              {isActionLoading ? "Sending..." : "Send Reminder"}
+              {sendReminderEmail.isPending ? "Sending..." : "Send Reminder"}
             </Button>
           </DialogFooter>
         </DialogContent>
