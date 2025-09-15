@@ -1,33 +1,48 @@
-import { User } from "@/types/user";
-import { Property } from "./property";
+export interface CreateReviewDTO {
+  transactionUuid: string;
+  comment: string;
+  rating: number;
+}
+
+export interface CreateReplyDTO {
+  reviewId: number;
+  comment: string;
+}
 
 export interface Review {
   id: number;
   comment: string;
   rating: number;
-  userId: number;
-  user: User;
-  propertyId: number;
-  property: Property;
-  transactionId: number;
   createdAt: string;
+  updatedAt: string;
+  userId: number;
+  propertyId: number;
+  transactionId: number;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    pictureProfile?: string;
+  };
+  property: {
+    id: number;
+    title: string;
+    city: string;
+    tenantId: number;
+  };
   replies: Reply[];
 }
 
 export interface Reply {
   id: number;
   comment: string;
+  createdAt: string;
+  updatedAt: string;
   reviewId: number;
   tenantId: number;
-  tenant: Tenant;
-  createdAt: string;
-}
-
-
-
-export interface Tenant {
-  id: number;
-  name: string;
-  email: string;
-  pictureProfile: string | null;
+  tenant: {
+    id: number;
+    name: string;
+    email: string;
+  };
 }
