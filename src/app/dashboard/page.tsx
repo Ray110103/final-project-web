@@ -23,8 +23,8 @@ import {
   Mail,
   RefreshCw
 } from "lucide-react";
-import { TransactionList } from '@/components/tenant/transaction-list';
-import { DashboardStats } from '@/components/tenant/dashboard-stats';
+import { TransactionList } from '@/app/dashboard/_components/transaction-list';
+import { DashboardStats } from '@/app/dashboard/_components/dashboard-stats';
 import { useGetTransactions } from './_hooks/use-transactions';
 import { TransactionStatus } from '@/types/transaction';
 

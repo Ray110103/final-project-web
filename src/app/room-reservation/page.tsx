@@ -52,7 +52,7 @@ import {  Room } from "@/types/room";
 import { Transaction } from "@/types/transaction";
 import { useGetProperties } from "./_hooks/useProperties";
 import { useGetRooms } from "./_hooks/useRooms";
-import { createTransaction } from "@/lib/transaction-service";
+import { createTransaction } from "@/app/dashboard/_services/transaction-service";
 
 export default function RoomReservationPage() {
   const [properties, setProperties] = useState<Property[]>([]);

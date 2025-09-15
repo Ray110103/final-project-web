@@ -28,7 +28,7 @@ import {
 import { Review } from '@/types/review';
 import { Property } from '@/types/property';
 import { useGetReviews } from './_hooks/use-reviews';
-import { createReview } from '@/lib/review-service';
+import { createReview } from '@/app/dashboard/_services/review-service';
 
 export default function ReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);

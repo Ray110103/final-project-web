@@ -41,7 +41,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { Transaction, TransactionStatus } from '@/types/transaction';
-import { useUpdateTransaction, useCancelTransaction, useSendReminderEmail } from '@/lib/transaction-service';
+import { useUpdateTransaction, useCancelTransaction, useSendReminderEmail } from '@/app/dashboard/_services/transaction-service';
 
 interface TransactionListProps {
   transactionsData: any;
