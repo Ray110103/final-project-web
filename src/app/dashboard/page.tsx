@@ -23,8 +23,8 @@ import {
   Mail,
   RefreshCw
 } from "lucide-react";
-import { TransactionList } from '@/components/tenant/transaction-list';
-import { DashboardStats } from '@/components/tenant/dashboard-stats';
+import { TransactionList } from '@/app/dashboard/_components/transaction-list';
+import { DashboardStats } from '@/app/dashboard/_components/dashboard-stats';
 import { useGetTransactions } from './_hooks/use-transactions';
 import { TransactionStatus } from '@/types/transaction';
 
@@ -33,10 +33,15 @@ export default function TenantDashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | "ALL">("ALL");
   
-  const { data: transactionsData, loading, error, refetch } = useGetTransactions({
-    status: statusFilter !== "ALL" ? statusFilter : undefined
-  });
+// src/app/(tenant)/dashboard/page.tsx
 
+// Update the hook call to this:
+// src/app/(tenant)/dashboard/page.tsx
+
+// Update the hook call to this:
+const { data: transactionsData, loading, error, refetch } = useGetTransactions(
+  statusFilter === "ALL" ? {} : { status: statusFilter }
+);
   // Calculate stats from transaction data
   const calculateStats = () => {
     if (!transactionsData?.data) {
