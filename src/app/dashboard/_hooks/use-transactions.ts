@@ -7,7 +7,7 @@ import { Transaction, TransactionStatus, TransactionsResponse } from '@/types/tr
 
 interface UseGetTransactionsOptions {
   enabled?: boolean;
-  role?: 'USER' | 'TENANT';
+  role?: 'user' | 'tenant';
 }
 
 interface GetTransactionsParams {
@@ -22,7 +22,7 @@ interface GetTransactionsParams {
 
 export const useGetTransactions = (
   params: GetTransactionsParams = {}, 
-  options: UseGetTransactionsOptions = { enabled: true, role: 'USER' }
+  options: UseGetTransactionsOptions = { enabled: true, role: 'user' }
 ) => {
   const [data, setData] = useState<TransactionsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,9 +42,11 @@ export const useGetTransactions = (
       if (!session.data?.user?.accessToken) {
         throw new Error('Authentication required');
       }
-    
       
-      const response = await axiosInstance.get<TransactionsResponse>("/transactions/tenant", {
+      // Determine endpoint based on role
+      const endpoint = role === 'tenant' ? '/transactions/tenant' : '/transactions';
+      
+      const response = await axiosInstance.get<TransactionsResponse>(endpoint, {
         headers: { Authorization: `Bearer ${session.data.user.accessToken}` },
         params: {
           page: params.page || 1,
@@ -70,22 +72,9 @@ export const useGetTransactions = (
     }
   };
 
-  // Updated useEffect to handle session loading state
   useEffect(() => {
-    // Don't fetch if session is loading
-    if (session.status === 'loading') {
-      setLoading(true);
-      return;
-    }
-    
-    // Only fetch when enabled and session is authenticated
-    if (enabled && session.status === 'authenticated') {
-      fetchData();
-    } else if (session.status === 'unauthenticated') {
-      setLoading(false);
-      setError('Authentication required');
-    }
-  }, [JSON.stringify(params), enabled, role, session.status]); // Added session.status to dependencies
+    fetchData();
+  }, [JSON.stringify(params), enabled, role]);
 
   // Function to manually refetch data
   const refetch = () => {
@@ -134,10 +123,10 @@ export const useGetTransactions = (
 
 // Hook for tenant transactions
 export const useGetTenantTransactions = (params: GetTransactionsParams = {}) => {
-  return useGetTransactions(params, { enabled: true, role: 'TENANT' });
+  return useGetTransactions(params, { enabled: true, role: 'tenant' });
 };
 
 // Hook for user transactions
 export const useGetUserTransactions = (params: GetTransactionsParams = {}) => {
-  return useGetTransactions(params, { enabled: true, role: 'USER' });
+  return useGetTransactions(params, { enabled: true, role: 'user' });
 };

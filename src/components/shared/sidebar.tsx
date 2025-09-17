@@ -39,6 +39,18 @@ const sidebarGroups = [
 				badge: "New",
 			},
 			{
+				title: "Sales Report",
+				href: "/dashboard/reports/sales",
+				icon: BarChart3,
+				badge: null,
+			},
+			{
+				title: "Property Report",
+				href: "/dashboard/reports/property-availability",
+				icon: FileText,
+				badge: null,
+			},
+			{
 				title: "Settings",
 				href: "/dashboard/settings",
 				icon: Settings,
