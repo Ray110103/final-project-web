@@ -2,6 +2,8 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,8 +25,8 @@ import {
   Mail,
   RefreshCw
 } from "lucide-react";
-import { TransactionList } from '@/app/dashboard/_components/transaction-list';
-import { DashboardStats } from '@/app/dashboard/_components/dashboard-stats';
+import { TransactionList } from '@/components/tenant/transaction-list';
+import { DashboardStats } from '@/components/tenant/dashboard-stats';
 import { useGetTransactions } from './_hooks/use-transactions';
 import { TransactionStatus } from '@/types/transaction';
 
@@ -32,16 +34,12 @@ export default function TenantDashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | "ALL">("ALL");
-  
-// src/app/(tenant)/dashboard/page.tsx
+  const router = useRouter();
 
-// Update the hook call to this:
-// src/app/(tenant)/dashboard/page.tsx
+  const { data: transactionsData, loading, error, refetch } = useGetTransactions({
+    status: statusFilter !== "ALL" ? statusFilter : undefined
+  });
 
-// Update the hook call to this:
-const { data: transactionsData, loading, error, refetch } = useGetTransactions(
-  statusFilter === "ALL" ? {} : { status: statusFilter }
-);
   // Calculate stats from transaction data
   const calculateStats = () => {
     if (!transactionsData?.data) {
@@ -268,7 +266,7 @@ const { data: transactionsData, loading, error, refetch } = useGetTransactions(
                         : "IDR 0"}
                     </span>
                   </div>
-                  <Button className="w-full">View Detailed Report</Button>
+                  <Button className="w-full" onClick={() => router.push('/dashboard/reports/sales')}>View Detailed Report</Button>
                 </div>
               </CardContent>
             </Card>

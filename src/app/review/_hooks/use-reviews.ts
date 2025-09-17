@@ -55,7 +55,6 @@ export const useGetReviews = (
         }
       });
       
-      
       setData(response.data);
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'An error occurred';
