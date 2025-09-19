@@ -39,11 +39,18 @@ const sidebarGroups = [
 				badge: "New",
 			},
 			{
-				title: "Settings",
-				href: "/dashboard/settings",
-				icon: Settings,
+				title: "Sales Report",
+				href: "/dashboard/reports/sales",
+				icon: BarChart3,
 				badge: null,
 			},
+			{
+				title: "Property Report",
+				href: "/dashboard/reports/property-availability",
+				icon: FileText,
+				badge: null,
+			},
+			
 		],
 	},
 
@@ -74,77 +81,7 @@ const sidebarGroups = [
 
 	
 
-	{
-		title: "Pages",
-		items: [
-			{
-				title: "Users",
-				href: "/dashboard/users",
-				icon: Users,
-				badge: "12",
-			},
-			{
-				title: "Projects",
-				href: "/dashboard/projects",
-				icon: FolderKanban,
-				badge: null,
-			},
-			{
-				title: "Documents",
-				href: "/dashboard/documents",
-				icon: FileText,
-				badge: null,
-			},
-			{
-				title: "Calendar",
-				href: "/dashboard/calendar",
-				icon: Calendar,
-				badge: "3",
-			},
-			{
-				title: "Auth Pages",
-				href: "/dashboard/auth",
-				icon: LogIn,
-				badge: null,
-			},
-			{
-				title: "Error Pages",
-				href: "/dashboard/errors",
-				icon: AlertCircle,
-				badge: null,
-			},
-		],
-	},
-
-	{
-		title: "Others",
-		items: [
-			{
-				title: "Messages",
-				href: "/dashboard/messages",
-				icon: MessageSquare,
-				badge: "5",
-			},
-			{
-				title: "Database",
-				href: "/dashboard/database",
-				icon: Database,
-				badge: null,
-			},
-			{
-				title: "Security",
-				href: "/dashboard/security",
-				icon: Shield,
-				badge: "!",
-			},
-			{
-				title: "Help",
-				href: "/dashboard/help",
-				icon: HelpCircle,
-				badge: null,
-			},
-		],
-	},
+	
 ];
 
 interface SidebarProps {
