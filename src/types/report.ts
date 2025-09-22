@@ -37,4 +37,6 @@ export interface PropertyAvailability {
   available: boolean;
   stock: number;
   booked: boolean;
+  bookedUnits?: number;
+  availableUnits?: number;
 }

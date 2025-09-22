@@ -19,40 +19,45 @@ import {
   HelpCircle,
   LogIn,
   AlertCircle,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSession } from "next-auth/react";
 
-const sidebarGroups = [
-	{
-		title: "General",
-		items: [
-			{
-				title: "Dashboard",
-				href: "/dashboard",
-				icon: LayoutDashboard,
-				badge: null,
-			},
-			{
-				title: "Analytics",
-				href: "/dashboard/analytics",
-				icon: BarChart3,
-				badge: "New",
-			},
-			{
-				title: "Sales Report",
-				href: "/dashboard/reports/sales",
-				icon: BarChart3,
-				badge: null,
-			},
-			{
-				title: "Property Report",
-				href: "/dashboard/reports/property-availability",
-				icon: FileText,
-				badge: null,
-			},
-			
-		],
-	},
+type SidebarItem = {
+  title: string;
+  href: string;
+  icon: any;
+  badge: string | null;
+  roles?: string[]; // allowed roles; if omitted, visible to all
+};
+
+const sidebarGroups: { title: string; items: SidebarItem[] }[] = [
+  {
+    title: "General",
+    items: [
+      {
+        title: "Transactions",
+        href: "/dashboard/transactions",
+        icon: CreditCard,
+        badge: null,
+        roles: ["tenant"],
+      },
+
+      {
+        title: "Sales Report",
+        href: "/dashboard/reports/sales",
+        icon: BarChart3,
+        badge: null,
+      },
+      {
+        title: "Property Report",
+        href: "/dashboard/reports/property-availability",
+        icon: FileText,
+        badge: null,
+      },
+    ],
+  },
 
   {
     title: "Property",
@@ -63,7 +68,7 @@ const sidebarGroups = [
         icon: Settings,
         badge: null,
       },
-	  {
+      {
         title: "Property Category",
         href: "/dashboard/property/property-category",
         icon: Settings,
@@ -95,50 +100,6 @@ const sidebarGroups = [
       },
     ],
   },
-
-  {
-    title: "Pages",
-    items: [
-      {
-        title: "Users",
-        href: "/dashboard/users",
-        icon: Users,
-        badge: "12",
-      },
-      {
-        title: "Projects",
-        href: "/dashboard/projects",
-        icon: FolderKanban,
-        badge: null,
-      },
-      {
-        title: "Documents",
-        href: "/dashboard/documents",
-        icon: FileText,
-        badge: null,
-      },
-      {
-        title: "Calendar",
-        href: "/dashboard/calendar",
-        icon: Calendar,
-        badge: "3",
-      },
-      {
-        title: "Auth Pages",
-        href: "/dashboard/auth",
-        icon: LogIn,
-        badge: null,
-      },
-      {
-        title: "Error Pages",
-        href: "/dashboard/errors",
-        icon: AlertCircle,
-        badge: null,
-      },
-    ],
-  },
-
-	
 ];
 
 interface SidebarProps {

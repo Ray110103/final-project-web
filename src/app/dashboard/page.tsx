@@ -2,6 +2,8 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,15 +27,16 @@ import {
 } from "lucide-react";
 import { TransactionList } from '@/components/tenant/transaction-list';
 import { DashboardStats } from '@/components/tenant/dashboard-stats';
-import { useGetTransactions } from './_hooks/use-transactions';
+import { useGetTenantTransactions } from './_hooks/use-transactions';
 import { TransactionStatus } from '@/types/transaction';
 
 export default function TenantDashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | "ALL">("ALL");
-  
-  const { data: transactionsData, loading, error, refetch } = useGetTransactions({
+  const router = useRouter();
+
+  const { data: transactionsData, loading, error, refetch } = useGetTenantTransactions({
     status: statusFilter !== "ALL" ? statusFilter : undefined
   });
 
@@ -263,7 +266,7 @@ export default function TenantDashboardPage() {
                         : "IDR 0"}
                     </span>
                   </div>
-                  <Button className="w-full">View Detailed Report</Button>
+                  <Button className="w-full" onClick={() => router.push('/dashboard/reports/sales')}>View Detailed Report</Button>
                 </div>
               </CardContent>
             </Card>

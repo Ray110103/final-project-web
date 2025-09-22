@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import type { FC } from "react"
 import { useState } from "react"
@@ -165,7 +165,7 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (isError || !property) {
@@ -182,7 +182,7 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   const minPrice = getMinPrice()
@@ -575,8 +575,9 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
           </Button>
         </div>
       </div>
+
     </div>
-  )
-}
+  );
+};
 
 export default PropertyDetails

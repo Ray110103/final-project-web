@@ -66,6 +66,11 @@ export function Navbar() {
             >
               Tentang Kami
             </Link>
+            {isUser && (
+              <Link href="/orders" className="text-foreground hover:text-accent transition-colors">
+                Pesanan Saya
+              </Link>
+            )}
           </div>
 
           {/* Auth Section */}
@@ -91,12 +96,19 @@ export function Navbar() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {isUser && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/orders">Pesanan Saya</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link href="/profile">Profile</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard">Dashboard</Link>
-                  </DropdownMenuItem>
+                  {role !== "user" && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard">Dashboard</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     Logout
@@ -144,6 +156,11 @@ export function Navbar() {
               >
                 Tentang Kami
               </Link>
+              {isUser && (
+                <Link href="/orders" onClick={toggleMenu} className="block px-3 py-2 text-foreground hover:text-accent transition-colors">
+                  Pesanan Saya
+                </Link>
+              )}
 
               {/* Auth Section Mobile */}
               <div className="flex flex-col space-y-2 px-3 py-2">
