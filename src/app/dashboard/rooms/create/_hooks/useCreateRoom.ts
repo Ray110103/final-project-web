@@ -23,7 +23,6 @@ const useCreateRoom = () => {
 
   return useMutation({
     mutationFn: async (payload: RoomPayload | FormData) => {
-   
       if (!session?.user.accessToken) {
         throw new Error("Access token is missing or expired");
       }
