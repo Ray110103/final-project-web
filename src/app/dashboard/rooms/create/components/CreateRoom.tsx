@@ -30,9 +30,7 @@ interface PropertyOption {
   id: string | number
   title: string
   slug: string
-  id: string | number
-  title: string
-  slug: string
+
 }
 
 const validationSchema = Yup.object().shape({
@@ -59,11 +57,7 @@ const validationSchema = Yup.object().shape({
 })
 
 const CreateRoom = () => {
-  const createRoom = useCreateRoom()
-  const { data: session } = useSession()
-  const [submitting, setSubmitting] = useState(false)
-  const [properties, setProperties] = useState<PropertyOption[]>([])
-  const [loadingProperties, setLoadingProperties] = useState(true)
+
   const createRoom = useCreateRoom()
   const { data: session } = useSession()
   const [submitting, setSubmitting] = useState(false)
@@ -81,36 +75,33 @@ const CreateRoom = () => {
         })
         const propertiesData = res.data.data ?? res.data
         setProperties(Array.isArray(propertiesData) ? propertiesData : [])
-        })
-        const propertiesData = res.data.data ?? res.data
-        setProperties(Array.isArray(propertiesData) ? propertiesData : [])
+
+       
       } catch (error) {
         console.error("Failed to fetch properties", error)
         setProperties([])
-        console.error("Failed to fetch properties", error)
-        setProperties([])
+     
       } finally {
         setLoadingProperties(false)
-        setLoadingProperties(false)
+
       }
     }
-    }
+    
 
     if (session?.user.accessToken) {
       fetchProperties()
-      fetchProperties()
+
     }
-  }, [session])
+
   }, [session])
 
   return (
-    <div className="min-h-screen bg-background">
+ 
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-6 py-12">
         <div className="max-w-7xl mx-auto">
           <div className="mb-12">
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              Buat <span className="text-primary">Kamar</span>
+
             <h1 className="text-4xl font-bold text-foreground mb-2">
               Buat <span className="text-primary">Kamar</span>
             </h1>
@@ -419,7 +410,6 @@ const CreateRoom = () => {
     </div>
   )
 }
-  )
-}
+
 
 export default CreateRoom

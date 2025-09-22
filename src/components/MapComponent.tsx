@@ -1,10 +1,10 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect, useState } from "react"
 import { MapContainer, TileLayer, useMapEvents, Marker } from "react-leaflet"
 import { MapPin, Loader2 } from "lucide-react"
+import type { LeafletMouseEvent } from "leaflet" // Import the event type
 
 interface MapProps {
   onLocationChange: (lat: number, lng: number) => void
@@ -21,7 +21,7 @@ const MapComponent = ({ onLocationChange, style }: MapProps) => {
 
   function LocationMarker() {
     useMapEvents({
-      click(e) {
+      click(e: LeafletMouseEvent) { // Add explicit type for the event parameter
         const { lat, lng } = e.latlng
         setSelectedPosition([lat, lng])
         onLocationChange(lat, lng)
