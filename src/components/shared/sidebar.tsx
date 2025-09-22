@@ -23,29 +23,36 @@ import {
 import { Button } from "@/components/ui/button";
 
 const sidebarGroups = [
-  {
-    title: "General",
-    items: [
-      {
-        title: "Dashboard",
-        href: "/dashboard",
-        icon: LayoutDashboard,
-        badge: null,
-      },
-      {
-        title: "Analytics",
-        href: "/dashboard/analytics",
-        icon: BarChart3,
-        badge: "New",
-      },
-      {
-        title: "Settings",
-        href: "/dashboard/settings",
-        icon: Settings,
-        badge: null,
-      },
-    ],
-  },
+	{
+		title: "General",
+		items: [
+			{
+				title: "Dashboard",
+				href: "/dashboard",
+				icon: LayoutDashboard,
+				badge: null,
+			},
+			{
+				title: "Analytics",
+				href: "/dashboard/analytics",
+				icon: BarChart3,
+				badge: "New",
+			},
+			{
+				title: "Sales Report",
+				href: "/dashboard/reports/sales",
+				icon: BarChart3,
+				badge: null,
+			},
+			{
+				title: "Property Report",
+				href: "/dashboard/reports/property-availability",
+				icon: FileText,
+				badge: null,
+			},
+			
+		],
+	},
 
   {
     title: "Property",
@@ -131,35 +138,7 @@ const sidebarGroups = [
     ],
   },
 
-  {
-    title: "Others",
-    items: [
-      {
-        title: "Messages",
-        href: "/dashboard/messages",
-        icon: MessageSquare,
-        badge: "5",
-      },
-      {
-        title: "Database",
-        href: "/dashboard/database",
-        icon: Database,
-        badge: null,
-      },
-      {
-        title: "Security",
-        href: "/dashboard/security",
-        icon: Shield,
-        badge: "!",
-      },
-      {
-        title: "Help",
-        href: "/dashboard/help",
-        icon: HelpCircle,
-        badge: null,
-      },
-    ],
-  },
+	
 ];
 
 interface SidebarProps {
