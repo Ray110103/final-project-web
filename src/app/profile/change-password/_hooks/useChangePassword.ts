@@ -10,6 +10,11 @@ interface Payload {
   newPassword: string;
 }
 
+interface ErrorResponse {
+  message: string;
+  code?: number;
+}
+
 const useChangePassword = () => {
   const session = useSession();
   const router = useRouter();
@@ -27,12 +32,42 @@ const useChangePassword = () => {
       );
       return data;
     },
-    onSuccess: async (data) => {
-      toast.success("change password success");
+    onSuccess: (data) => {
+      toast.success(data?.message || "Password berhasil diubah!");
       router.replace("/profile");
     },
-    onError: (error: AxiosError<{ message: string }>) => {
-      toast.error(error.response?.data?.message ?? "Something went wrong");
+    onError: (error: AxiosError<ErrorResponse>) => {
+      console.error("Change password error:", error);
+      
+      if (!error.response) {
+        toast.error("Koneksi bermasalah. Silakan coba lagi.");
+        return;
+      }
+
+      const { status, data } = error.response;
+      
+      switch (status) {
+        case 400:
+          toast.error(data?.message || "Password lama tidak valid");
+          break;
+        case 401:
+          toast.error("Sesi Anda telah berakhir. Silakan login kembali.");
+          break;
+        case 403:
+          toast.error("Anda tidak memiliki akses untuk mengubah password");
+          break;
+        case 422:
+          toast.error("Password baru tidak memenuhi kriteria minimum");
+          break;
+        case 429:
+          toast.error("Terlalu banyak percobaan. Tunggu beberapa menit.");
+          break;
+        case 500:
+          toast.error("Server bermasalah. Silakan coba lagi nanti.");
+          break;
+        default:
+          toast.error(data?.message || "Gagal mengubah password. Silakan coba lagi.");
+      }
     },
   });
 };

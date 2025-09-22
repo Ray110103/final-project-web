@@ -1,166 +1,167 @@
 "use client";
 
-import type { FC } from "react";
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import useGetPropertyBySlug from "../_hooks/useGetPropertyBySlug";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useSession } from "next-auth/react";
-import { toast } from "sonner";
-import { createTransaction, getSnapToken } from "@/lib/transaction-service";
+import type { FC } from "react"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import Image from "next/image"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
   MapPin,
-  Calendar,
   Building,
-  User,
-  Hash,
-  Clock,
   Navigation,
-} from "lucide-react";
-import { loadSnap } from "@/lib/midtrans";
-import { ReviewSection } from "@/components/property/ReviewSection";
+  Heart,
+  Share2,
+  Phone,
+  Bookmark,
+  Star,
+  Users,
+  Bed,
+  Wifi,
+  Bath,
+  Home,
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from "lucide-react"
+import { Property } from "@/types/property"
+import { RoomImage } from "@/types/room"
+import useGetPropertyBySlug from "../_hooks/useGetPropertyBySlug"
 
 interface PropertyDetailsProps {
-  slug: string;
+  slug: string
+}
+
+// Image Gallery Component
+const ImageGallery = ({ images, title }: { images: RoomImage[]; title: string }) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  const nextImage = () => {
+    setCurrentIndex((prev) => (prev + 1) % images.length)
+  }
+
+  const prevImage = () => {
+    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)
+  }
+
+  return (
+    <div className="relative">
+      <div className="relative aspect-video w-full max-w-4xl mx-auto">
+        <Image
+          src={images[currentIndex]?.url || "/placeholder.svg"}
+          alt={`${title} - Image ${currentIndex + 1}`}
+          fill
+          className="object-cover rounded-lg"
+          sizes="(max-width: 768px) 100vw, 80vw"
+        />
+        
+        {images.length > 1 && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white"
+              onClick={prevImage}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white"
+              onClick={nextImage}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+        
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+          {currentIndex + 1} / {images.length}
+        </div>
+      </div>
+      
+      {images.length > 1 && (
+        <div className="grid grid-cols-6 gap-2 mt-4 max-w-4xl mx-auto">
+          {images.map((image, index) => (
+            <button
+              key={image.id}
+              onClick={() => setCurrentIndex(index)}
+              className={`relative aspect-square rounded overflow-hidden border-2 transition-all ${
+                index === currentIndex ? 'border-blue-500' : 'border-transparent hover:border-gray-300'
+              }`}
+            >
+              <Image
+                src={image.url}
+                alt={`Thumbnail ${index + 1}`}
+                fill
+                className="object-cover"
+                sizes="100px"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
-  const { data: property, isPending, isError } = useGetPropertyBySlug(slug);
-  const router = useRouter();
-  const { data: session } = useSession();
+  const { data: property, isPending, isError } = useGetPropertyBySlug(slug)
+  const router = useRouter()
 
-  // Booking form state
-  const [roomId, setRoomId] = useState<number | null>(null);
-  const [qty, setQty] = useState<number>(1);
-  const [startDate, setStartDate] = useState<string>(""
-  );
-  const [endDate, setEndDate] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<"MANUAL_TRANSFER" | "PAYMENT_GATEWAY">("MANUAL_TRANSFER");
-  const [submitting, setSubmitting] = useState(false);
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(price)
+  }
 
-  // Initialize defaults when property loads
-  useEffect(() => {
+  const getMinPrice = () => {
     if (property?.rooms && property.rooms.length > 0) {
-      setRoomId(property.rooms[0].id);
+      return Math.min(...property.rooms.map(room => room.price))
     }
-    // Default date: today and tomorrow
-    const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(today.getDate() + 1);
-    const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    setStartDate(toIso(today));
-    setEndDate(toIso(tomorrow));
-  }, [property]);
+    return 0
+  }
 
-  const canSubmit = useMemo(() => {
-    return !!roomId && !!startDate && !!endDate && qty > 0;
-  }, [roomId, startDate, endDate, qty]);
-
-  const onCreateTransaction = async () => {
-    if (!canSubmit) return;
-    try {
-      // Validate date order
-      if (new Date(startDate) > new Date(endDate)) {
-        toast.error("Tanggal check-in harus sebelum tanggal check-out");
-        return;
-      }
-      setSubmitting(true);
-      const res = await createTransaction(
-        {
-          roomId: roomId as number,
-          qty,
-          startDate,
-          endDate,
-          paymentMethod,
-        },
-        (session?.user as any)?.accessToken
-      );
-
-      // Assume API returns a transaction-like object
-      const tx = res?.data;
-      const uuid = tx?.uuid as string | undefined;
-      const invoiceUrl = tx?.invoice_url as string | undefined;
-
-      if (paymentMethod === "PAYMENT_GATEWAY") {
-        const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY as string;
-        const isProd = (process.env.NEXT_PUBLIC_MIDTRANS_PRODUCTION as string) === "true";
-        const fallback = () => {
-          if (invoiceUrl) window.open(invoiceUrl, "_blank");
-        };
-        try {
-          await loadSnap(clientKey, isProd);
-          // Retrieve token from backend by uuid
-          const resToken = await getSnapToken(uuid as string, (session?.user as any)?.accessToken);
-          const token = resToken?.token as string | undefined;
-          if (!token) {
-            toast.error("Token pembayaran tidak tersedia");
-            fallback();
-            router.push("/orders");
-            return;
-          }
-          const snap: any = (window as any).snap;
-          if (!snap?.pay) {
-            fallback();
-            router.push("/orders");
-            return;
-          }
-          snap.pay(token, {
-            onSuccess: () => {
-              toast.success("Pembayaran berhasil");
-              router.push("/orders");
-            },
-            onPending: () => {
-              toast.message("Menunggu pembayaran diselesaikan");
-              router.push("/orders");
-            },
-            onError: () => {
-              toast.error("Terjadi kesalahan saat proses pembayaran");
-            },
-            onClose: () => {
-              toast("Popup pembayaran ditutup");
-            },
-          });
-          return;
-        } catch (e: any) {
-          toast.error(e?.message || "Gagal memuat Midtrans");
-          fallback();
-          router.push("/orders");
-          return;
-        }
-      }
-      if (uuid) {
-        // Open orders with upload modal preselected
-        router.push(`/orders?upload=${uuid}`);
-      } else {
-        router.push("/orders");
-      }
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err.message || "Gagal membuat pesanan";
-      toast.error(msg);
-    } finally {
-      setSubmitting(false);
+  const getMaxCapacity = () => {
+    if (property?.rooms && property.rooms.length > 0) {
+      return Math.max(...property.rooms.map(room => room.capacity || 2))
     }
-  };
+    return 2
+  }
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8 space-y-6">
-          <Skeleton className="h-64 md:h-96 w-full rounded-xl" />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-4">
-              <Skeleton className="h-8 w-3/4" />
-              <Skeleton className="h-6 w-1/2" />
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Skeleton className="h-8 w-64 mb-6" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mb-8">
+            <Skeleton className="h-96 rounded-2xl" />
+            <div className="grid grid-cols-2 gap-2">
+              <Skeleton className="h-48 rounded-2xl" />
+              <Skeleton className="h-48 rounded-2xl" />
+              <Skeleton className="h-48 rounded-2xl" />
+              <Skeleton className="h-48 rounded-2xl" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
               <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-24 w-full" />
             </div>
-            <div className="space-y-4">
-              <Skeleton className="h-48 w-full rounded-lg" />
-            </div>
+            <Skeleton className="h-80 w-full rounded-2xl" />
           </div>
         </div>
       </div>
@@ -169,17 +170,13 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
 
   if (isError || !property) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md mx-auto">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md mx-auto shadow-lg border-0 rounded-2xl">
           <CardContent className="text-center py-12">
-            <Building className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              Properti Tidak Ditemukan
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Properti yang Anda cari tidak ada atau telah dihapus.
-            </p>
-            <Button onClick={() => router.push("/property")} className="w-full">
+            <Building className="h-20 w-20 text-gray-400 mx-auto mb-6" />
+            <h2 className="text-2xl font-semibold text-gray-900 mb-3">Properti Tidak Ditemukan</h2>
+            <p className="text-gray-600 mb-8 leading-relaxed">Properti yang Anda cari tidak ada atau telah dihapus.</p>
+            <Button onClick={() => router.push("/property")} className="w-full bg-blue-600 hover:bg-blue-700" size="lg">
               Kembali ke Daftar Properti
             </Button>
           </CardContent>
@@ -188,369 +185,394 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
     );
   }
 
+  const minPrice = getMinPrice()
+  const maxCapacity = getMaxCapacity()
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Hero Image */}
-        <div className="relative w-full h-64 md:h-96 mb-8 rounded-xl overflow-hidden shadow-lg">
-          <Image
-            src={
-              property.thumbnail ||
-              "/placeholder.svg?height=400&width=800&query=modern property exterior"
-            }
-            alt={property.title}
-            fill
-            className="object-cover"
-            sizes="100vw"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-3 text-balance">{property.title}</h1>
+            <div className="flex items-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <Star className="h-4 w-4 fill-current text-amber-400" />
+                <span className="font-semibold">4.8</span>
+                <span className="text-gray-600">(124 reviews)</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-700">
+                <MapPin className="h-4 w-4" />
+                <span className="underline hover:no-underline cursor-pointer">
+                  {property.city && property.location 
+                    ? `${property.city}, ${property.location}`
+                    : property.location || property.city || property.address
+                  }
+                </span>
+              </div>
+              {property.category && (
+                <Badge variant="outline" className="text-xs">
+                  {property.category.name}
+                </Badge>
+              )}
+              <Badge 
+                variant={property.status === 'ACTIVE' ? 'default' : 'secondary'}
+                className="text-xs"
+              >
+                {property.status}
+              </Badge>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" className="flex items-center gap-2 hover:bg-white rounded-xl">
+              <Share2 className="h-4 w-4" />
+              Share
+            </Button>
+            <Button variant="ghost" size="sm" className="flex items-center gap-2 hover:bg-white rounded-xl">
+              <Heart className="h-4 w-4" />
+              Save
+            </Button>
+          </div>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Main Details */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Title and Category */}
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <h1 className="text-3xl md:text-4xl font-bold text-foreground text-balance">
-                    {property.title}
-                  </h1>
+        {/* Property Images */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-12 rounded-2xl overflow-hidden">
+          <div className="relative aspect-[4/3] lg:aspect-square">
+            <Image
+              src={property.images?.[0]?.url || property.thumbnail || "/placeholder.svg?height=600&width=600&query=modern luxury property exterior"}
+              alt={property.title}
+              fill
+              className="object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              priority
+            />
+          </div>
+          {property.images && property.images.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {property.images.slice(1, 5).map((img, index) => (
+                <div key={img.id} className="relative aspect-square">
+                  <Image
+                    src={img.url || "/placeholder.svg"}
+                    alt={`${property.title} - ${index + 2}`}
+                    fill
+                    className="object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                    sizes="(max-width: 1024px) 50vw, 25vw"
+                  />
+                  {index === 3 && property.images.length > 5 && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
+                      <span className="text-white font-semibold">+{property.images.length - 5} more</span>
+                    </div>
+                  )}
                 </div>
-                {property.category && (
-                  <Badge variant="secondary" className="shrink-0">
-                    <Building className="h-3 w-3 mr-1" />
-                    {property.category}
-                  </Badge>
-                )}
-              </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-              {/* Location Details */}
-              <div className="space-y-2">
-                {property.location && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="h-4 w-4 text-primary" />
-                    <span className="text-sm">{property.location}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            {/* Property Overview */}
+            <div className="pb-8 border-b border-gray-200">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                    {property.category?.name || 'Property'} in {property.city}
+                  </h2>
+                  <div className="flex items-center gap-6 text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      <span>{maxCapacity} guests</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Home className="h-4 w-4" />
+                      <span>{property.rooms?.length || 0} rooms</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Bed className="h-4 w-4" />
+                      <span>{property.rooms?.length || 0} beds</span>
+                    </div>
                   </div>
-                )}
-
-                {property.city && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Building className="h-4 w-4 text-primary" />
-                    <span className="text-sm">Kota: {property.city}</span>
-                  </div>
-                )}
-
-                {property.address && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Navigation className="h-4 w-4 text-primary" />
-                    <span className="text-sm">{property.address}</span>
-                  </div>
-                )}
+                </div>
+                <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center">
+                  <Building className="h-7 w-7 text-blue-600" />
+                </div>
               </div>
             </div>
 
             {/* Description */}
             {property.description && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-3">
-                    Deskripsi Properti
-                  </h3>
-                  <p className="text-muted-foreground leading-relaxed text-pretty">
-                    {property.description}
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="pb-8 border-b border-gray-200">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">About this place</h3>
+                <p className="text-gray-700 leading-relaxed text-lg">{property.description}</p>
+              </div>
             )}
 
-            {/* Coordinates (if available) */}
-            {property.latitude && property.longtitude && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-3">
-                    Lokasi Koordinat
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Latitude:</span>
-                      <p className="font-mono text-foreground">
-                        {property.latitude}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Longitude:</span>
-                      <p className="font-mono text-foreground">
-                        {property.longtitude}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Reviews Section (below coordinates) */}
-            <Card>
-              <CardContent className="pt-6">
-                <ReviewSection propertyId={property.id?.toString() || ''} />
-              </CardContent>
-            </Card>
-
-            {/* Display Property Images */}
-            {property.images && property.images.length > 0 && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-4">
-                    Property Images
-                  </h3>
-                  <div className="flex gap-2 flex-wrap">
-                    {property.images.map((img) => (
-                      <div
-                        key={img.id}
-                        className="relative w-24 h-24 rounded-md overflow-hidden"
-                      >
-                        <Image
-                          src={img.url}
-                          alt={`Image of ${property.title}`}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Display Facilities */}
+            {/* Facilities */}
             {property.facilities && property.facilities.length > 0 && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-4">
-                    Facilities
-                  </h3>
-                  <ul className="list-disc pl-6">
-                    {property.facilities.map((facility) => (
-                      <li key={facility.title} className="text-muted-foreground">
-                        {facility.title}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Right Column - Property Info */}
-          <div className="space-y-6">
-            {/* Property Information Card */}
-            <Card>
-              <CardContent className="pt-6">
-                <h3 className="text-lg font-semibold text-foreground mb-4">
-                  Informasi Properti
-                </h3>
-
-                <div className="space-y-4">
-                  {/* Created Date */}
-                  {property.createdAt && (
-                    <div className="flex items-center justify-between py-2 border-b border-border">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-primary" />
-                        <span className="text-sm text-muted-foreground">
-                          Dibuat
-                        </span>
+              <div className="pb-8 border-b border-gray-200">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">What this place offers</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {property.facilities.map((facility) => (
+                    <div key={facility.id || facility.title} className="flex items-center gap-4 py-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <Wifi className="h-5 w-5 text-gray-600" />
                       </div>
-                      <span className="text-sm text-foreground">
-                        {new Date(property.createdAt).toLocaleDateString(
-                          "id-ID",
-                          {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          }
-                        )}
-                      </span>
+                      <span className="text-gray-800 font-medium">{facility.title}</span>
                     </div>
-                  )}
-
-                  {/* Updated Date */}
-                  {property.updatedAt && (
-                    <div className="flex items-center justify-between py-2">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-primary" />
-                        <span className="text-sm text-muted-foreground">
-                          Diperbarui
-                        </span>
-                      </div>
-                      <span className="text-sm text-foreground">
-                        {new Date(property.updatedAt).toLocaleDateString(
-                          "id-ID",
-                          {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          }
-                        )}
-                      </span>
-                    </div>
-                  )}
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            )}
 
-            {/* Room Details (if available) */}
+            {/* Rooms */}
             {property.rooms && property.rooms.length > 0 && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-4">
-                    Daftar Ruangan
-                  </h3>
-                  <div className="space-y-4">
-                    {property.rooms.map((room) => (
-                      <div
-                        key={room.id}
-                        className="p-4 border rounded-lg flex flex-col gap-3 hover:shadow-sm transition"
-                      >
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-base font-semibold text-foreground">
-                            {room.name}
-                          </h4>
-                          {room.capacity && (
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
-                              Kapasitas: {room.capacity}
-                            </span>
+              <div className="pb-8 border-b border-gray-200">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">Where you'll sleep</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {property.rooms.map((room) => (
+                    <div
+                      key={room.id}
+                      className="border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-shadow bg-white"
+                    >
+                      {room.images && room.images.length > 0 && (
+                        <div className="relative aspect-[4/3] mb-4 rounded-xl overflow-hidden">
+                          <Image
+                            src={room.images[0].url || "/placeholder.svg"}
+                            alt={room.name}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 50vw"
+                          />
+                          
+                          {/* View All Images Button */}
+                          {room.images.length > 1 && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute top-2 right-2 bg-white/80 hover:bg-white backdrop-blur-sm"
+                                >
+                                  <Camera className="h-4 w-4 mr-1" />
+                                  {room.images.length}
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                                <DialogHeader>
+                                  <DialogTitle>{room.name} - All Images</DialogTitle>
+                                </DialogHeader>
+                                <ImageGallery images={room.images} title={room.name} />
+                              </DialogContent>
+                            </Dialog>
                           )}
                         </div>
-
-                        {/* Room Images */}
-                        {room.images && room.images.length > 0 && (
-                          <div className="flex gap-2 flex-wrap">
-                            {room.images.map((img) => (
-                              <div
-                                key={img.id}
-                                className="relative w-24 h-24 rounded-md overflow-hidden"
-                              >
-                                <Image
-                                  src={img.url}
-                                  alt={room.name}
-                                  fill
-                                  className="object-cover"
-                                />
-                              </div>
-                            ))}
+                      )}
+                      
+                      <h4 className="font-bold text-gray-900 mb-2 text-lg">{room.name}</h4>
+                      {room.description && <p className="text-gray-600 mb-4 leading-relaxed">{room.description}</p>}
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <Bed className="h-4 w-4" />
+                            <span>1 bed</span>
                           </div>
-                        )}
-
-                        {room.description && (
-                          <p className="text-sm text-muted-foreground">
-                            {room.description}
-                          </p>
-                        )}
-                        {room.price && (
-                          <p className="text-sm text-foreground font-medium">
-                            Harga: Rp {room.price.toLocaleString("id-ID")}
-                          </p>
-                        )}
+                          <div className="flex items-center gap-1">
+                            <Users className="h-4 w-4" />
+                            <span>{room.capacity || 2} guests</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                              Stock: {room.stock}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-lg font-bold text-gray-900">
+                            {formatPrice(room.price)}
+                          </span>
+                          <span className="text-gray-600 text-sm">/night</span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
-            {/* Booking Form */}
-            {property.rooms && property.rooms.length > 0 && (
-              <Card>
-                <CardContent className="pt-6 space-y-4">
-                  <h3 className="text-lg font-semibold text-foreground mb-2">Reservasi Kamar</h3>
-                  <div className="grid grid-cols-1 gap-3">
-                    {/* Room select */}
-                    <div className="space-y-1">
-                      <label className="text-sm text-muted-foreground">Pilih Kamar</label>
-                      <select
-                        className="w-full border rounded-md px-3 py-2 bg-background"
-                        value={roomId ?? undefined}
-                        onChange={(e) => setRoomId(Number(e.target.value))}
-                      >
-                        {property.rooms.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name} {r.price ? `- Rp ${r.price.toLocaleString('id-ID')}` : ''}
-                          </option>
-                        ))}
-                      </select>
+            {/* Location */}
+            <div className="pb-8 border-b border-gray-200">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">Where you'll be</h3>
+              <div className="space-y-6">
+                {property.address && (
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center mt-1">
+                      <Navigation className="h-5 w-5 text-blue-600" />
                     </div>
-
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-sm text-muted-foreground">Check-in</label>
-                        <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-sm text-muted-foreground">Check-out</label>
-                        <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                      </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-lg">{property.address}</p>
+                      <p className="text-gray-600">{property.city}, {property.location}</p>
                     </div>
-
-                    {/* Quantity */}
-                    <div className="space-y-1">
-                      <label className="text-sm text-muted-foreground">Jumlah</label>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={qty}
-                        onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
-                      />
-                    </div>
-
-                    {/* Payment Method */}
-                    <div className="space-y-1">
-                      <label className="text-sm text-muted-foreground">Metode Pembayaran</label>
-                      <select
-                        className="w-full border rounded-md px-3 py-2 bg-background"
-                        value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value as any)}
-                      >
-                        <option value="MANUAL_TRANSFER">Transfer Manual (upload bukti)</option>
-                        <option value="PAYMENT_GATEWAY">Payment Gateway (otomatis)</option>
-                      </select>
-                    </div>
-
-                    <Button onClick={onCreateTransaction} disabled={!canSubmit || submitting} className="w-full">
-                      {submitting ? "Memproses..." : "Buat Pesanan"}
-                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                )}
+                {property.latitude && property.longtitude && (
+                  <div className="bg-white rounded-xl p-6 border border-gray-200">
+                    <h4 className="font-semibold text-gray-900 mb-4">Coordinates</h4>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <span className="text-gray-600 text-sm">Latitude</span>
+                        <p className="font-mono text-gray-900 font-medium">{property.latitude}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 text-sm">Longitude</span>
+                        <p className="font-mono text-gray-900 font-medium">{property.longtitude}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
-            {/* Action Buttons */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-3">
-                  <Button className="w-full" size="lg">
-                    Hubungi Pemilik
-                  </Button>
+          {/* Booking Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-6">
+              <Card className="shadow-xl border border-gray-200 rounded-2xl overflow-hidden bg-white">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-gray-900">
+                        {formatPrice(minPrice)}
+                      </span>
+                      <span className="text-gray-600">night</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-sm">
+                      <Star className="h-4 w-4 fill-current text-amber-400" />
+                      <span className="font-semibold">4.8</span>
+                      <span className="text-gray-600">(124)</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div className="grid grid-cols-2 border border-gray-300 rounded-xl overflow-hidden">
+                      <div className="p-4 border-r border-gray-300">
+                        <div className="text-xs font-semibold text-gray-900 uppercase tracking-wide">Check-in</div>
+                        <div className="text-sm text-gray-600 mt-1">Add date</div>
+                      </div>
+                      <div className="p-4">
+                        <div className="text-xs font-semibold text-gray-900 uppercase tracking-wide">Checkout</div>
+                        <div className="text-sm text-gray-600 mt-1">Add date</div>
+                      </div>
+                    </div>
+                    <div className="border border-gray-300 rounded-xl p-4">
+                      <div className="text-xs font-semibold text-gray-900 uppercase tracking-wide">Guests</div>
+                      <div className="text-sm text-gray-600 mt-1">1 guest</div>
+                    </div>
+                  </div>
+
                   <Button
-                    variant="outline"
-                    className="w-full bg-transparent"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-xl mb-4"
                     size="lg"
                   >
-                    Simpan Properti
+                    Reserve
                   </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => router.push("/property")}
-                  >
-                    Kembali ke Daftar
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+
+                  <p className="text-center text-sm text-gray-600 mb-6">You won't be charged yet</p>
+
+                  <div className="space-y-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 underline">{formatPrice(minPrice)} x 5 nights</span>
+                      <span className="font-medium">{formatPrice(minPrice * 5)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 underline">Cleaning fee</span>
+                      <span className="font-medium">{formatPrice(50000)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 underline">Service fee</span>
+                      <span className="font-medium">{formatPrice(70000)}</span>
+                    </div>
+                    <hr className="border-gray-200" />
+                    <div className="flex justify-between font-bold text-base">
+                      <span>Total before taxes</span>
+                      <span>{formatPrice(minPrice * 5 + 120000)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="mt-6 space-y-3">
+                <Button
+                  variant="outline"
+                  className="w-full border-gray-300 hover:bg-white bg-white rounded-xl font-medium"
+                  size="lg"
+                >
+                  <Phone className="h-4 w-4 mr-2" />
+                  Contact Host
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full border-gray-300 hover:bg-white bg-white rounded-xl font-medium"
+                  size="lg"
+                >
+                  <Bookmark className="h-4 w-4 mr-2" />
+                  Save to Wishlist
+                </Button>
+              </div>
+
+              <Card className="mt-6 border border-gray-200 rounded-2xl bg-white">
+                <CardContent className="p-6">
+                  <h4 className="font-bold text-gray-900 mb-4">Property details</h4>
+                  <div className="space-y-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Property ID</span>
+                      <span className="text-gray-900 font-medium">#{property.id}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status</span>
+                      <Badge 
+                        variant={property.status === 'ACTIVE' ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {property.status}
+                      </Badge>
+                    </div>
+                    {property.createdAt && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Listed</span>
+                        <span className="text-gray-900 font-medium">
+                          {new Date(property.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
+                    )}
+                    {property.updatedAt && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Updated</span>
+                        <span className="text-gray-900 font-medium">
+                          {new Date(property.updatedAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
+        </div>
+
+        <div className="mt-12 pt-8 border-t border-gray-200">
+          <Button
+            variant="ghost"
+            onClick={() => router.push("/property")}
+            className="text-gray-600 hover:text-gray-900 hover:bg-white rounded-xl"
+          >
+            ← Back to listings
+          </Button>
         </div>
       </div>
 
@@ -558,4 +580,4 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
   );
 };
 
-export default PropertyDetails;
+export default PropertyDetails

@@ -1,3 +1,4 @@
+// _hooks/useGetPropertyBySlug.ts
 import { Property } from "@/types/property";
 import { axiosInstance } from "@/lib/axios";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +10,9 @@ const useGetPropertyBySlug = (slug: string) => {
       const { data } = await axiosInstance.get<Property>(`/property/${slug}`);
       return data;
     },
+    enabled: !!slug, // Only run query if slug exists
   });
 };
 
 export default useGetPropertyBySlug;
+
