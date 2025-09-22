@@ -36,20 +36,8 @@ const sidebarGroups: { title: string; items: SidebarItem[] }[] = [
   {
 		title: "General",
 		items: [
-			{
-				title: "Dashboard",
-				href: "/dashboard",
-				icon: LayoutDashboard,
-				badge: null,
-				roles: ["admin", "user", "tenant"],
-			},
-			{
-				title: "Analytics",
-				href: "/dashboard/analytics",
-				icon: BarChart3,
-				badge: "New",
-				roles: ["admin", "tenant"],
-			},
+			
+		
 			{
 				title: "Sales Report",
 				href: "/dashboard/reports/sales",
@@ -71,13 +59,7 @@ const sidebarGroups: { title: string; items: SidebarItem[] }[] = [
 				badge: null,
 				roles: ["admin", "tenant"],
 			},
-			{
-				title: "Settings",
-				href: "/dashboard/settings",
-				icon: Settings,
-				badge: null,
-				roles: ["admin", "tenant"],
-			},
+			
 		],
 	},
 
@@ -108,87 +90,6 @@ const sidebarGroups: { title: string; items: SidebarItem[] }[] = [
 		],
 	},
 
-	{
-		title: "Pages",
-		items: [
-			{
-				title: "Users",
-				href: "/dashboard/users",
-				icon: Users,
-				badge: "12",
-				roles: ["admin"],
-			},
-			{
-				title: "Projects",
-				href: "/dashboard/projects",
-				icon: FolderKanban,
-				badge: null,
-				roles: ["tenant"],
-			},
-			{
-				title: "Documents",
-				href: "/dashboard/documents",
-				icon: FileText,
-				badge: null,
-				roles: ["tenant"],
-			},
-			{
-				title: "Calendar",
-				href: "/dashboard/calendar",
-				icon: Calendar,
-				badge: "3",
-				roles: ["tenant"],
-			},
-			{
-				title: "Auth Pages",
-				href: "/dashboard/auth",
-				icon: LogIn,
-				badge: null,
-				roles: ["admin"],
-			},
-			{
-				title: "Error Pages",
-				href: "/dashboard/errors",
-				icon: AlertCircle,
-				badge: null,
-				roles: ["admin"],
-			},
-		],
-	},
-
-	{
-		title: "Others",
-		items: [
-			{
-				title: "Messages",
-				href: "/dashboard/messages",
-				icon: MessageSquare,
-				badge: "5",
-				roles: ["tenant"],
-			},
-			{
-				title: "Database",
-				href: "/dashboard/database",
-				icon: Database,
-				badge: null,
-				roles: ["admin"],
-			},
-			{
-				title: "Security",
-				href: "/dashboard/security",
-				icon: Shield,
-				badge: "!",
-				roles: ["admin"],
-			},
-			{
-				title: "Help",
-				href: "/dashboard/help",
-				icon: HelpCircle,
-				badge: null,
-				roles: ["admin", "user"],
-			},
-		],
-	},
 ];
 
 interface SidebarProps {
