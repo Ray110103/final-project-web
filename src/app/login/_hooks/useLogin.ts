@@ -11,21 +11,37 @@ interface LoginPayload {
   password: string;
 }
 
+interface LoginResponse extends User {
+  accessToken: string;
+}
+
 const useLogin = () => {
   const router = useRouter();
 
   return useMutation({
     mutationFn: async (payload: LoginPayload) => {
-      const { data } = await axiosInstance.post<User>("/auth/login", payload);
+      const { data } = await axiosInstance.post<LoginResponse>("/auth/login", payload);
       return data;
     },
     onSuccess: async (data) => {
-      await signIn("credentials", { ...data, redirect: false });
-      toast.success("sign in success");
-      router.replace("/");
+      // Store token consistently
+      if (data.accessToken) {
+        localStorage.setItem("token", data.accessToken);
+        localStorage.setItem("access_token", data.accessToken);
+      }
+      
+      await signIn("credentials", { 
+        ...data, 
+        accessToken: data.accessToken, // Pass accessToken explicitly
+        redirect: false 
+      });
+      
+      toast.success("Login berhasil");
+      router.replace("/dashboard");
     },
     onError: (error: AxiosError<{ message: string }>) => {
-      toast.error(error.response?.data.message ?? "Something went wrong!");
+      console.error("Login error:", error);
+      toast.error(error.response?.data.message ?? "Login gagal!");
     },
   });
 };

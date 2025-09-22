@@ -1,5 +1,5 @@
-import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import CreateRoom from "./components/CreateRoom";
 
 const DashboardCreateRoom = async () => {
@@ -7,7 +7,11 @@ const DashboardCreateRoom = async () => {
 
   if (!session?.user) return redirect(`/login`);
 
-  return <CreateRoom />;
+  return (
+    <div>
+      <CreateRoom />
+    </div>
+  );
 };
 
 export default DashboardCreateRoom;

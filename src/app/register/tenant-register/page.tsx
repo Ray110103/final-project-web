@@ -4,10 +4,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ErrorMessage, Field, Form, Formik } from "formik"
-import { ArrowLeft, Building, Loader2 } from "lucide-react"
+import { ArrowLeft, Building, Loader2, Mail, RefreshCw } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
 import * as Yup from "yup"
 import useRegisterTenant from "./_hooks/useRegisterTenant"
+import useResendVerification from "../_hooks/useResendVerification"
 
 const validationSchema = Yup.object().shape({
   name: Yup.string().required("Name is required").min(3),
@@ -17,7 +19,108 @@ const validationSchema = Yup.object().shape({
 
 const SignUp = () => {
   const { mutateAsync: register, isPending } = useRegisterTenant()
+  const { mutateAsync: resendVerification, isPending: isResendPending } = useResendVerification()
+  
+  const [isRegistered, setIsRegistered] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState("")
 
+  const handleRegister = async (values: any) => {
+    try {
+      await register(values)
+      setIsRegistered(true)
+      setRegisteredEmail(values.email)
+    } catch (error) {
+      console.error("Registration failed:", error)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    try {
+      await resendVerification({ email: registeredEmail })
+    } catch (error) {
+      console.error("Resend verification failed:", error)
+    }
+  }
+
+  // Show success state after registration
+  if (isRegistered) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Kembali ke Beranda</span>
+          </Link>
+
+          <Card>
+            <CardHeader className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Building className="h-8 w-8 text-primary" />
+                <span className="text-2xl font-bold text-foreground">PropertyRent</span>
+              </div>
+              <div className="flex justify-center mb-4">
+                <Mail className="h-16 w-16 text-primary" />
+              </div>
+              <CardTitle className="text-2xl text-foreground">Verifikasi Email Diperlukan</CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Kami telah mengirimkan email verifikasi ke <strong>{registeredEmail}</strong>
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <div className="text-center text-sm text-muted-foreground">
+                <p>Silakan periksa inbox email Anda dan klik link verifikasi untuk mengaktifkan akun tenant Anda.</p>
+              </div>
+              
+              <div className="bg-muted/20 border border-muted rounded-lg p-4">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Tidak menerima email?
+                </p>
+                <Button 
+                  variant="outline" 
+                  onClick={handleResendVerification}
+                  disabled={isResendPending}
+                  className="w-full"
+                >
+                  {isResendPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Mengirim ulang...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Kirim ulang email verifikasi
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+
+            <CardFooter className="flex flex-col gap-2">
+              <Link href="/login" className="w-full">
+                <Button variant="outline" className="w-full">
+                  Sudah verifikasi? Login sekarang
+                </Button>
+              </Link>
+              <Button 
+                variant="ghost" 
+                onClick={() => setIsRegistered(false)}
+                className="w-full text-sm"
+              >
+                Kembali ke form registrasi
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </main>
+    )
+  }
+
+  // Show registration form
   return (
     <main className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-4">
@@ -35,12 +138,9 @@ const SignUp = () => {
               name: "",
               email: "",
               password: "",
-              referralCode: "",
             }}
             validationSchema={validationSchema}
-            onSubmit={async (values) => {
-              await register(values)
-            }}
+            onSubmit={handleRegister}
           >
             <Form className="space-y-4">
               <CardHeader className="text-center">
@@ -106,11 +206,18 @@ const SignUp = () => {
                 </div>
               </CardContent>
 
-              <CardFooter className="flex-col gap-2">
+              <CardFooter className="flex-col gap-4">
                 <Button type="submit" className="w-full" disabled={isPending}>
                   {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {isPending ? "Mendaftar..." : "Daftar sebagai Penyewa"}
                 </Button>
+                
+                <div className="text-center text-sm text-muted-foreground">
+                  Sudah punya akun?{" "}
+                  <Link href="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
+                    Login di sini
+                  </Link>
+                </div>
               </CardFooter>
             </Form>
           </Formik>

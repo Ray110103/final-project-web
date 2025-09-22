@@ -1,17 +1,17 @@
-import React from "react";
-import NavigationBar from "./components/Navbar";
-import HeroSection from "./components/HeroSection";
 import Footer from "./components/Footer";
+import HeroSection from "./components/HeroSection";
+import NavigationBar from "./components/Navbar";
+import PropertyPreview from "./components/PropertiesPreview";
+import LandingSearchForm from "./components/SearchForm";
 import SearchForm from "./components/SearchForm";
-import PropertyList from "./components/PropertiesPreview";
 
 const page = () => {
   return (
     <div>
       <NavigationBar />
       <HeroSection />
-      <SearchForm />
-      <PropertyList />
+      <LandingSearchForm />
+      <PropertyPreview />
       <Footer />
     </div>
   );
