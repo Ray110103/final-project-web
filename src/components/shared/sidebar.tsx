@@ -20,6 +20,7 @@ import {
   LogIn,
   AlertCircle,
   CreditCard,
+  CalendarClock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
@@ -98,6 +99,13 @@ const sidebarGroups: { title: string; items: SidebarItem[] }[] = [
         icon: Settings,
         badge: null,
       },
+      {
+        title: "Seasonal Rates",
+        href: "/dashboard/rooms/seasonal-rates",
+        icon: CalendarClock,
+        badge: null,
+      },
+      
     ],
   },
 ];
