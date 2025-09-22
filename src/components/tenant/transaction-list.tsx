@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { Transaction, TransactionStatus } from '@/types/transaction';
 import { updateTransaction, cancelTransaction, sendReminderEmail } from '@/lib/transaction-service';
+import { useSession } from "next-auth/react";
 
 interface TransactionListProps {
   transactionsData: any;
@@ -73,6 +74,8 @@ export function TransactionList({
   const [actionType, setActionType] = useState<"ACCEPT" | "REJECT" | "CANCEL">("ACCEPT");
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const { data: session } = useSession();
+  const accessToken = (session?.user as any)?.accessToken as string | undefined;
 
   // Format date to readable format
   const formatDate = (dateString: string) => {
@@ -127,10 +130,10 @@ export function TransactionList({
     
     try {
       if (actionType === "CANCEL") {
-        await cancelTransaction(selectedTransaction.uuid);
+        await cancelTransaction(selectedTransaction.uuid, accessToken);
         setToastMessage({ message: "Transaction cancelled successfully", type: "success" });
       } else {
-        await updateTransaction(selectedTransaction.uuid, actionType);
+        await updateTransaction(selectedTransaction.uuid, actionType, accessToken);
         setToastMessage({ 
           message: `Transaction ${actionType === "ACCEPT" ? "accepted" : "rejected"} successfully`, 
           type: "success" 
@@ -162,7 +165,7 @@ export function TransactionList({
     setIsActionLoading(true);
     
     try {
-      await sendReminderEmail(selectedTransaction.uuid);
+      await sendReminderEmail(selectedTransaction.uuid, accessToken);
       setToastMessage({ message: "Reminder email sent successfully", type: "success" });
       
       // Close dialog
@@ -390,7 +393,7 @@ export function TransactionList({
                             </>
                           )}
                           
-                          {transaction.status === "WAITING_FOR_PAYMENT" && (
+                          {transaction.status === "WAITING_FOR_PAYMENT" && !transaction.paymentProof && (
                             <DropdownMenuItem
                               onClick={() => openActionDialog(transaction, "CANCEL")}
                               className="text-red-600"

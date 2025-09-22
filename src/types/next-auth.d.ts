@@ -1,4 +1,4 @@
-  import { User } from "../../types/user";
+  import { User } from "./user";
 
   interface LoginPayload extends User {
     accessToken: string;

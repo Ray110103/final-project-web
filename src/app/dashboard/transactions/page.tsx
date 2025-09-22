@@ -1,157 +1,168 @@
-// pages/tenant/transactions.tsx
 "use client";
 
-import { useState, useEffect, JSX } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Transaction as TransactionType } from '@/types/transaction';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import {
-    Search,
-    MoreHorizontal,
-    CheckCircle,
-    XCircle,
-    Clock,
-    Mail,
-    Calendar,
-    Building,
-    MapPin,
-    RefreshCw,
-} from "lucide-react";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useGetTransactions } from './_hooks/useGetTransactions';
-import { updateTransaction, cancelTransaction, sendReminderEmail } from './_services/transactionService';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Search, RefreshCw, CheckCircle, XCircle, Clock, Mail, MoreHorizontal } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useSession } from 'next-auth/react';
+import { useGetTenantTransactions } from '../_hooks/use-transactions';
+import { updateTransaction, cancelTransaction, sendReminderEmail } from '@/lib/transaction-service';
+import { TransactionStatus } from '@/types/transaction';
+import { toast } from 'sonner';
 
+// Type for transaction actions
+type TransactionAction = "ACCEPT" | "REJECT" | "CANCEL";
 
-type TransactionStatus = "WAITING_FOR_PAYMENT" | "WAITING_FOR_CONFIRMATION" | "PAID" | "CANCELLED" | "EXPIRED";
-
-interface Transaction {
-    id: number;
-    uuid: string;
-    userid: number;
-    username: string;
-    roomid: string;
-    room: {
-        id: string;
-        name: string;
-        property: {
-            id: number;
-            name: string;
-            city: string;
-            address?: string;
-        };
-    };
-    qty: number;
-    status: TransactionStatus;
-    total: number;
-    startDate: string;
-    endDate: string;
-    paymentProof?: string;
-    createdAt: string;
-    updatedAt: string;
-}
+// Use the imported TransactionType from types
+type Transaction = TransactionType;
 
 export default function TenantTransactionsPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<TransactionStatus | "ALL">("ALL");
-    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+    const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
     const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false);
-    const [actionType, setActionType] = useState<"ACCEPT" | "REJECT" | "CANCEL">("ACCEPT");
+    const [actionType, setActionType] = useState<TransactionAction>("ACCEPT");
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("all");
-    const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-    const { data: transactionsData, loading, error, refetch } = useGetTransactions({
+    const { data: session } = useSession();
+    const accessToken = (session?.user as any)?.accessToken as string | undefined;
+    
+    const { data: transactionsData, loading, error, refetch } = useGetTenantTransactions({
         status: statusFilter !== "ALL" ? statusFilter : undefined
     });
 
     // Format date to readable format
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
+      if (!dateString) return '';
+      try {
+        return new Date(dateString).toLocaleDateString('id-ID', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
         });
+      } catch (e) {
+        console.error('Error formatting date:', e);
+        return dateString;
+      }
     };
 
-    // Get status badge variant based on transaction status
-    const getStatusBadge = (status: TransactionStatus) => {
-        switch (status) {
-            case "WAITING_FOR_PAYMENT":
-                return <Badge variant="destructive">Waiting Payment</Badge>;
-            case "WAITING_FOR_CONFIRMATION":
-                return <Badge variant="secondary">Waiting Confirmation</Badge>;
-            case "PAID":
-                return <Badge variant="default">Paid</Badge>;
-            case "CANCELLED":
-                return <Badge variant="destructive">Cancelled</Badge>;
-            case "EXPIRED":
-                return <Badge variant="outline">Expired</Badge>;
-            default:
-                return <Badge variant="outline">{status}</Badge>;
-        }
+    // Format currency
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+      }).format(amount);
     };
 
-    // Get status icon based on transaction status
+    // Get status text
+    const getStatusText = (status: TransactionStatus) => {
+      switch (status) {
+        case "WAITING_FOR_PAYMENT":
+          return "Menunggu Pembayaran";
+        case "WAITING_FOR_CONFIRMATION":
+          return "Menunggu Konfirmasi";
+        case "PAID":
+          return "Dibayar";
+        case "CANCELLED":
+          return "Dibatalkan";
+        case "EXPIRED":
+          return "Kedaluwarsa";
+        default:
+          return status;
+      }
+    };
+
+    // Get status icon
     const getStatusIcon = (status: TransactionStatus) => {
-        switch (status) {
-            case "WAITING_FOR_PAYMENT":
-                return <Clock className="h-4 w-4 text-yellow-500" />;
-            case "WAITING_FOR_CONFIRMATION":
-                return <Clock className="h-4 w-4 text-blue-500" />;
-            case "PAID":
-                return <CheckCircle className="h-4 w-4 text-green-500" />;
-            case "CANCELLED":
-                return <XCircle className="h-4 w-4 text-red-500" />;
-            case "EXPIRED":
-                return <XCircle className="h-4 w-4 text-gray-500" />;
-            default:
-                return <Clock className="h-4 w-4 text-gray-500" />;
-        }
+      const className = "h-4 w-4 mr-2";
+      switch (status) {
+        case "WAITING_FOR_PAYMENT":
+          return <Clock className={`${className} text-yellow-500`} />;
+        case "WAITING_FOR_CONFIRMATION":
+          return <Clock className={`${className} text-blue-500`} />;
+        case "PAID":
+          return <CheckCircle className={`${className} text-green-500`} />;
+        case "CANCELLED":
+          return <XCircle className={`${className} text-red-500`} />;
+        case "EXPIRED":
+          return <XCircle className={`${className} text-gray-500`} />;
+        default:
+          return <Clock className={`${className} text-gray-500`} />;
+      }
     };
 
     // Handle transaction action (accept, reject, cancel)
-    const handleTransactionAction = async () => {
-        if (!selectedTransaction) return;
+    const handleTransactionAction = async (transaction: Transaction, action: TransactionAction) => {
+        if (!transaction || !accessToken) return;
+        
+        setSelectedTransaction(transaction);
+        setActionType(action);
+        
+        if (action === "CANCEL") {
+            setIsCancelDialogOpen(true);
+        } else {
+            setIsConfirmDialogOpen(true);
+        }
+    };
+
+    // Handle sending reminder email
+    const handleReminder = (transaction: Transaction) => {
+        setSelectedTransaction(transaction);
+        setIsReminderDialogOpen(true);
+    };
+
+    // Confirm and execute transaction action
+    const confirmAction = async () => {
+        if (!selectedTransaction || !accessToken) return;
         
         setIsActionLoading(true);
         
         try {
             if (actionType === "CANCEL") {
-                await cancelTransaction(selectedTransaction.uuid);
-                setToastMessage({ message: "Transaction cancelled successfully", type: "success" });
+                await cancelTransaction(selectedTransaction.uuid, accessToken);
+                toast.success("Transaksi berhasil dibatalkan");
             } else {
-                await updateTransaction(selectedTransaction.uuid, actionType);
-                setToastMessage({ 
-                    message: `Transaction ${actionType === "ACCEPT" ? "accepted" : "rejected"} successfully`, 
-                    type: "success" 
+                // Use the new confirm endpoint for ACCEPT/REJECT actions
+                const response = await fetch('http://localhost:8000/transactions/confirm', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({
+                        uuid: selectedTransaction.uuid,
+                        action: actionType
+                    })
                 });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Gagal memproses transaksi');
+                }
+
+                toast.success(`Transaksi berhasil ${actionType === "ACCEPT" ? "diterima" : "ditolak"}`);
             }
             
             // Close dialogs
@@ -163,77 +174,68 @@ export default function TenantTransactionsPage() {
             refetch();
         } catch (error) {
             console.error("Error updating transaction:", error);
-            setToastMessage({ 
-                message: `Failed to ${actionType === "ACCEPT" ? "accept" : actionType === "REJECT" ? "reject" : "cancel"} transaction`, 
-                type: "error" 
-            });
+            const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan';
+            toast.error(`Gagal ${actionType === "ACCEPT" ? "menerima" : actionType === "REJECT" ? "menolak" : "membatalkan"} transaksi: ${errorMessage}`);
         } finally {
             setIsActionLoading(false);
         }
     };
 
-    // Handle sending reminder email
-    const handleSendReminder = async () => {
-        if (!selectedTransaction) return;
+    // Send reminder email
+    const sendReminder = async () => {
+        if (!selectedTransaction || !accessToken) return;
         
         setIsActionLoading(true);
         
         try {
-            await sendReminderEmail(selectedTransaction.uuid);
-            setToastMessage({ message: "Reminder email sent successfully", type: "success" });
+            await sendReminderEmail(selectedTransaction.uuid, accessToken);
+            toast.success("Email pengingat berhasil dikirim");
             
             // Close dialog
             setIsReminderDialogOpen(false);
             setSelectedTransaction(null);
         } catch (error) {
             console.error("Error sending reminder:", error);
-            setToastMessage({ message: "Failed to send reminder email", type: "error" });
+            toast.error("Gagal mengirim email pengingat");
         } finally {
             setIsActionLoading(false);
         }
-    };
-
-    // Open confirmation dialog for action
-    const openActionDialog = (transaction: Transaction, action: "ACCEPT" | "REJECT" | "CANCEL") => {
-        setSelectedTransaction(transaction);
-        setActionType(action);
-        
-        if (action === "CANCEL") {
-            setIsCancelDialogOpen(true);
-        } else {
-            setIsConfirmDialogOpen(true);
-        }
-    };
-
-    // Open reminder dialog
-    const openReminderDialog = (transaction: Transaction) => {
-        setSelectedTransaction(transaction);
-        setIsReminderDialogOpen(true);
     };
 
     // Filter transactions by status for tabs
     const getTransactionsByStatus = (status: TransactionStatus | "ALL") => {
         if (!transactionsData?.data) return [];
         if (status === "ALL") return transactionsData.data;
-        return transactionsData.data.filter(t => t.status === status);
+        return transactionsData.data.filter((t: any) => t.status === status);
     };
 
     // Filter transactions based on search term
-    const filteredTransactions = transactionsData?.data?.filter(transaction => 
-        searchTerm === "" ||
-        transaction.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.room.property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.uuid.toLowerCase().includes(searchTerm.toLowerCase())
-    ) || [];
+    const transactions = transactionsData?.data || [];
+    const searchedTransactions = searchTerm 
+        ? transactions.filter((transaction: any) => {
+            if (!transaction) return false;
+            const searchLower = searchTerm.toLowerCase();
+            const userName = transaction.user?.name || '';
+            const roomName = transaction.room?.name || '';
+            const propertyName = transaction.room?.property?.title || '';
+            const transactionId = transaction.uuid || '';
+            
+            return (
+                userName.toLowerCase().includes(searchLower) ||
+                roomName.toLowerCase().includes(searchLower) ||
+                propertyName.toLowerCase().includes(searchLower) ||
+                transactionId.toLowerCase().includes(searchLower)
+            );
+        })
+        : transactions;
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Transaction Management</h2>
+                    <h2 className="text-3xl font-bold tracking-tight">Manajemen Transaksi</h2>
                     <p className="text-muted-foreground">
-                        Manage tenant transactions and payment confirmations for your properties.
+                        Kelola transaksi dan konfirmasi pembayaran properti Anda.
                     </p>
                 </div>
                 <Button 
@@ -242,302 +244,188 @@ export default function TenantTransactionsPage() {
                     disabled={loading}
                 >
                     <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
+                    Muat Ulang
                 </Button>
             </div>
             
-            {/* Toast Notification */}
-            {toastMessage && (
-                <div className={`p-4 rounded-md ${toastMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-                    {toastMessage.message}
+            {/* Search and Filter */}
+            <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+                <div className="relative w-full md:w-80">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                    <Input
+                        placeholder="Cari transaksi..."
+                        className="pl-9"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
-            )}
-            
-            {/* Error State */}
-            {error && (
-                <Alert variant="destructive">
-                    <AlertDescription>
-                        Failed to load transactions: {error}
-                    </AlertDescription>
-                </Alert>
-            )}
-            
-            {/* Loading State */}
-            {loading && (
-                <div className="flex justify-center items-center h-64">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                
+                <div className="flex items-center space-x-2">
+                    <Tabs 
+                        value={statusFilter} 
+                        onValueChange={(value) => setStatusFilter(value as TransactionStatus | "ALL")}
+                        className="w-full md:w-auto"
+                    >
+                        <TabsList className="bg-gray-100 p-1 rounded-lg">
+                            <TabsTrigger 
+                                value="ALL"
+                                className="px-4 py-1.5 text-sm font-medium rounded-md transition-colors data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-gray-200"
+                            >
+                                Semua
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="WAITING_FOR_PAYMENT"
+                                className="px-4 py-1.5 text-sm font-medium rounded-md transition-colors data-[state=active]:bg-yellow-50 data-[state=active]:text-yellow-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-yellow-200"
+                            >
+                                Menunggu Pembayaran
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="WAITING_FOR_CONFIRMATION"
+                                className="px-4 py-1.5 text-sm font-medium rounded-md transition-colors data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-blue-200"
+                            >
+                                Menunggu Konfirmasi
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="PAID"
+                                className="px-4 py-1.5 text-sm font-medium rounded-md transition-colors data-[state=active]:bg-green-50 data-[state=active]:text-green-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-green-200"
+                            >
+                                Dibayar
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="CANCELLED"
+                                className="px-4 py-1.5 text-sm font-medium rounded-md transition-colors data-[state=active]:bg-red-50 data-[state=active]:text-red-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-red-200"
+                            >
+                                Dibatalkan
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
                 </div>
-            )}
+            </div>
             
-            {/* Filters and Search */}
+            {/* Transaction Table */}
             <Card>
+                <CardHeader>
+                    <CardTitle>Daftar Transaksi</CardTitle>
+                </CardHeader>
                 <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                        <div className="relative flex-1 w-full">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                            <Input
-                                placeholder="Search transactions..."
-                                className="pl-8"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <Button
-                                variant={statusFilter === "ALL" ? "default" : "outline"}
-                                onClick={() => setStatusFilter("ALL")}
-                            >
-                                All
-                            </Button>
-                            <Button
-                                variant={statusFilter === "WAITING_FOR_PAYMENT" ? "default" : "outline"}
-                                onClick={() => setStatusFilter("WAITING_FOR_PAYMENT")}
-                            >
-                                Waiting Payment
-                            </Button>
-                            <Button
-                                variant={statusFilter === "WAITING_FOR_CONFIRMATION" ? "default" : "outline"}
-                                onClick={() => setStatusFilter("WAITING_FOR_CONFIRMATION")}
-                            >
-                                Waiting Confirmation
-                            </Button>
-                            <Button
-                                variant={statusFilter === "PAID" ? "default" : "outline"}
-                                onClick={() => setStatusFilter("PAID")}
-                            >
-                                Paid
-                            </Button>
-                        </div>
-                    </div>
+                    <TransactionTable 
+                        transactions={searchedTransactions}
+                        onAction={handleTransactionAction}
+                        onReminder={handleReminder}
+                        loading={loading}
+                        formatDate={formatDate}
+                        formatCurrency={formatCurrency}
+                        getStatusIcon={getStatusIcon}
+                        getStatusText={getStatusText}
+                    />
                 </CardContent>
             </Card>
             
-            {/* Tabs for transaction status */}
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-5">
-                    <TabsTrigger value="all">All</TabsTrigger>
-                    <TabsTrigger value="waiting_payment">Waiting Payment</TabsTrigger>
-                    <TabsTrigger value="waiting_confirmation">Waiting Confirmation</TabsTrigger>
-                    <TabsTrigger value="paid">Paid</TabsTrigger>
-                    <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="all" className="space-y-4">
-                    <TransactionTable 
-                        transactions={filteredTransactions}
-                        getStatusBadge={getStatusBadge}
-                        getStatusIcon={getStatusIcon}
-                        formatDate={formatDate}
-                        openActionDialog={openActionDialog}
-                        openReminderDialog={openReminderDialog}
-                    />
-                </TabsContent>
-                
-                <TabsContent value="waiting_payment" className="space-y-4">
-                    <TransactionTable 
-                        transactions={getTransactionsByStatus("WAITING_FOR_PAYMENT")}
-                        getStatusBadge={getStatusBadge}
-                        getStatusIcon={getStatusIcon}
-                        formatDate={formatDate}
-                        openActionDialog={openActionDialog}
-                        openReminderDialog={openReminderDialog}
-                    />
-                </TabsContent>
-                
-                <TabsContent value="waiting_confirmation" className="space-y-4">
-                    <TransactionTable 
-                        transactions={getTransactionsByStatus("WAITING_FOR_CONFIRMATION")}
-                        getStatusBadge={getStatusBadge}
-                        getStatusIcon={getStatusIcon}
-                        formatDate={formatDate}
-                        openActionDialog={openActionDialog}
-                        openReminderDialog={openReminderDialog}
-                    />
-                </TabsContent>
-                
-                <TabsContent value="paid" className="space-y-4">
-                    <TransactionTable 
-                        transactions={getTransactionsByStatus("PAID")}
-                        getStatusBadge={getStatusBadge}
-                        getStatusIcon={getStatusIcon}
-                        formatDate={formatDate}
-                        openActionDialog={openActionDialog}
-                        openReminderDialog={openReminderDialog}
-                    />
-                </TabsContent>
-                
-                <TabsContent value="cancelled" className="space-y-4">
-                    <TransactionTable 
-                        transactions={getTransactionsByStatus("CANCELLED")}
-                        getStatusBadge={getStatusBadge}
-                        getStatusIcon={getStatusIcon}
-                        formatDate={formatDate}
-                        openActionDialog={openActionDialog}
-                        openReminderDialog={openReminderDialog}
-                    />
-                </TabsContent>
-            </Tabs>
-            
-            {/* Confirmation Dialog for ACCEPT/Reject */}
+            {/* Confirmation Dialog */}
             <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>
-                            {actionType === "ACCEPT" ? "ACCEPT Payment" : "Reject Payment"}
+                            {actionType === "ACCEPT" ? "Terima Pembayaran" : "Tolak Pembayaran"}
                         </DialogTitle>
                         <DialogDescription>
-                            {actionType === "ACCEPT"
-                                ? "Are you sure you want to accept this payment? The system will automatically send a confirmation email to the user with room details and property information."
-                                : "Are you sure you want to reject this payment? The order status will return to 'Waiting for Payment'."}
+                            Apakah Anda yakin ingin {actionType === "ACCEPT" ? "menerima" : "menolak"} pembayaran ini?
+                            {actionType === "REJECT" && " Status transaksi akan dikembalikan ke Menunggu Pembayaran."}
                         </DialogDescription>
                     </DialogHeader>
-                    
-                    {selectedTransaction && (
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <span className="font-medium">Transaction ID:</span>
-                                <span>{selectedTransaction.uuid}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Customer:</span>
-                                <span>{selectedTransaction.username}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Property:</span>
-                                <span>{selectedTransaction.room.property.name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Room:</span>
-                                <span>{selectedTransaction.room.name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Amount:</span>
-                                <span>
-                                    {selectedTransaction.total.toLocaleString("id-ID", {
-                                        style: "currency",
-                                        currency: "IDR",
-                                    })}
-                                </span>
-                            </div>
-                        </div>
-                    )}
-                    
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleTransactionAction}
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setIsConfirmDialogOpen(false)}
                             disabled={isActionLoading}
-                            variant={actionType === "ACCEPT" ? "default" : "destructive"}
                         >
-                            {isActionLoading ? "Processing..." : actionType === "ACCEPT" ? "ACCEPT" : "Reject"}
+                            Batal
+                        </Button>
+                        <Button 
+                            variant={actionType === "ACCEPT" ? "default" : "destructive"}
+                            onClick={confirmAction}
+                            disabled={isActionLoading}
+                        >
+                            {isActionLoading ? (
+                                <>
+                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                    Memproses...
+                                </>
+                            ) : actionType === "ACCEPT" ? (
+                                "Terima Pembayaran"
+                            ) : (
+                                "Tolak Pembayaran"
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
             
-            {/* Confirmation Dialog for Cancel */}
+            {/* Cancel Dialog */}
             <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Cancel Order</DialogTitle>
+                        <DialogTitle>Batalkan Pesanan</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to cancel this order? This action cannot be undone.
+                            Apakah Anda yakin ingin membatalkan pesanan ini? Aksi ini tidak dapat dibatalkan.
                         </DialogDescription>
                     </DialogHeader>
-                    
-                    {selectedTransaction && (
-                        <div className="space-y-2">
-                            <Alert>
-                                <AlertDescription>
-                                    You can only cancel orders where the payment proof has not been uploaded yet.
-                                </AlertDescription>
-                            </Alert>
-                            
-                            <div className="flex justify-between">
-                                <span className="font-medium">Transaction ID:</span>
-                                <span>{selectedTransaction.uuid}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Customer:</span>
-                                <span>{selectedTransaction.username}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Property:</span>
-                                <span>{selectedTransaction.room.property.name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Room:</span>
-                                <span>{selectedTransaction.room.name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Amount:</span>
-                                <span>
-                                    {selectedTransaction.total.toLocaleString("id-ID", {
-                                        style: "currency",
-                                        currency: "IDR",
-                                    })}
-                                </span>
-                            </div>
-                        </div>
-                    )}
-                    
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
-                            No, Keep Order
-                        </Button>
-                        <Button
-                            onClick={handleTransactionAction}
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setIsCancelDialogOpen(false)}
                             disabled={isActionLoading}
-                            variant="destructive"
                         >
-                            {isActionLoading ? "Processing..." : "Yes, Cancel Order"}
+                            Batal
+                        </Button>
+                        <Button 
+                            variant="destructive"
+                            onClick={confirmAction}
+                            disabled={isActionLoading}
+                        >
+                            {isActionLoading ? (
+                                <>
+                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                    Memproses...
+                                </>
+                            ) : (
+                                "Batalkan Pesanan"
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
             
-            {/* Confirmation Dialog for Reminder */}
+            {/* Reminder Dialog */}
             <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Send Reminder Email</DialogTitle>
+                        <DialogTitle>Kirim Pengingat</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to send a reminder email to the customer? This will include booking details and property rules.
+                            Apakah Anda yakin ingin mengirim email pengingat ke {selectedTransaction?.user?.name}?
+                            Email akan berisi detail pemesanan dan instruksi check-in.
                         </DialogDescription>
                     </DialogHeader>
-                    
-                    {selectedTransaction && (
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <span className="font-medium">Transaction ID:</span>
-                                <span>{selectedTransaction.uuid}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Customer:</span>
-                                <span>{selectedTransaction.username}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Property:</span>
-                                <span>{selectedTransaction.room.property.name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="font-medium">Check-in Date:</span>
-                                <span>{formatDate(selectedTransaction.startDate)}</span>
-                            </div>
-                        </div>
-                    )}
-                    
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsReminderDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleSendReminder}
+                        <Button 
+                            variant="outline" 
+                            onClick={() => setIsReminderDialogOpen(false)}
                             disabled={isActionLoading}
                         >
-                            {isActionLoading ? "Sending..." : "Send Reminder"}
+                            Batal
+                        </Button>
+                        <Button 
+                            onClick={sendReminder}
+                            disabled={isActionLoading}
+                        >
+                            {isActionLoading ? (
+                                <>
+                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                    Mengirim...
+                                </>
+                            ) : (
+                                "Kirim Pengingat"
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -549,155 +437,160 @@ export default function TenantTransactionsPage() {
 // Transaction Table Component
 interface TransactionTableProps {
     transactions: Transaction[];
-    getStatusBadge: (status: TransactionStatus) => JSX.Element;
-    getStatusIcon: (status: TransactionStatus) => JSX.Element;
+    onAction: (transaction: Transaction, action: "ACCEPT" | "REJECT" | "CANCEL") => void;
+    onReminder: (transaction: Transaction) => void;
+    loading: boolean;
     formatDate: (dateString: string) => string;
-    openActionDialog: (transaction: Transaction, action: "ACCEPT" | "REJECT" | "CANCEL") => void;
-    openReminderDialog: (transaction: Transaction) => void;
+    formatCurrency: (amount: number) => string;
+    getStatusIcon: (status: TransactionStatus) => React.ReactElement;
+    getStatusText: (status: TransactionStatus) => string;
 }
 
 const TransactionTable: React.FC<TransactionTableProps> = ({
     transactions,
-    getStatusBadge,
-    getStatusIcon,
+    onAction,
+    onReminder,
+    loading,
     formatDate,
-    openActionDialog,
-    openReminderDialog
+    formatCurrency,
+    getStatusIcon,
+    getStatusText
 }) => {
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center p-8">
+                <RefreshCw className="h-6 w-6 animate-spin text-gray-500" />
+            </div>
+        );
+    }
+
+    if (transactions.length === 0) {
+        return (
+            <div className="text-center py-8 text-gray-500">
+                Tidak ada transaksi yang ditemukan
+            </div>
+        );
+    }
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Transaction List</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {transactions.length === 0 ? (
-                    <div className="text-center py-8">
-                        <p className="text-muted-foreground">No transactions found</p>
-                    </div>
-                ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Transaction ID</TableHead>
-                                <TableHead>Customer</TableHead>
-                                <TableHead>Property</TableHead>
-                                <TableHead>Room</TableHead>
-                                <TableHead>Dates</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Total</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {transactions.map((transaction) => (
-                                <TableRow key={transaction.id}>
-                                    <TableCell className="font-medium">
-                                        {transaction.uuid}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            <Avatar className="h-8 w-8">
-                                                <AvatarFallback>
-                                                    {transaction.username
-                                                        .split(" ")
-                                                        .map((n) => n[0])
-                                                        .join("")}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <div className="font-medium">{transaction.username}</div>
-                                            </div>
+        <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            ID Transaksi
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Kamar
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Penyewa
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tanggal
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Total
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Aksi
+                        </th>
+                    </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {transactions.map((transaction) => (
+                        <tr key={transaction.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {transaction.uuid}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <div className="font-medium">{transaction.room?.name}</div>
+                                <div className="text-xs text-gray-500">
+                                    {transaction.room?.property?.title}
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <div className="flex items-center">
+                                    <Avatar className="h-8 w-8 mr-2">
+                                        <AvatarFallback>
+                                            {transaction.user?.name?.charAt(0) || 'U'}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <div className="font-medium">{transaction.user?.name}</div>
+                                        <div className="text-xs text-gray-500">
+                                            {transaction.user?.email}
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-1">
-                                            <Building className="h-4 w-4 text-blue-500" />
-                                            <span>{transaction.room.property.name}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        {transaction.room.name}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="text-sm">
-                                            <div>{formatDate(transaction.startDate)}</div>
-                                            <div className="text-muted-foreground">to {formatDate(transaction.endDate)}</div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-1">
-                                            {getStatusIcon(transaction.status)}
-                                            {getStatusBadge(transaction.status)}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        {transaction.total.toLocaleString("id-ID", {
-                                            style: "currency",
-                                            currency: "IDR",
-                                        })}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem>View Details</DropdownMenuItem>
-                                                
-                                                {transaction.status === "WAITING_FOR_CONFIRMATION" && (
-                                                    <>
-                                                        <DropdownMenuItem
-                                                            onClick={() => openActionDialog(transaction, "ACCEPT")}
-                                                            className="text-green-600"
-                                                        >
-                                                            <CheckCircle className="h-4 w-4 mr-2" />
-                                                            ACCEPT Payment
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() => openActionDialog(transaction, "REJECT")}
-                                                            className="text-red-600"
-                                                        >
-                                                            <XCircle className="h-4 w-4 mr-2" />
-                                                            Reject Payment
-                                                        </DropdownMenuItem>
-                                                    </>
-                                                )}
-                                                
-                                                {transaction.status === "WAITING_FOR_PAYMENT" && (
-                                                    <DropdownMenuItem
-                                                        onClick={() => openActionDialog(transaction, "CANCEL")}
-                                                        className="text-red-600"
-                                                    >
-                                                        <XCircle className="h-4 w-4 mr-2" />
-                                                        Cancel Order
-                                                    </DropdownMenuItem>
-                                                )}
-                                                
-                                                {transaction.status === "PAID" && (
-                                                    <>
-                                                        <DropdownMenuItem
-                                                            onClick={() => openReminderDialog(transaction)}
-                                                        >
-                                                            <Mail className="h-4 w-4 mr-2" />
-                                                            Send Reminder
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem>
-                                                            <Calendar className="h-4 w-4 mr-2" />
-                                                            View Booking Details
-                                                        </DropdownMenuItem>
-                                                    </>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                )}
-            </CardContent>
-        </Card>
+                                    </div>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {formatDate(transaction.startDate)} - {formatDate(transaction.endDate)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {formatCurrency(transaction.total)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                    {getStatusIcon(transaction.status)}
+                                    <span>{getStatusText(transaction.status)}</span>
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex justify-end space-x-2">
+                                    {transaction.status === "WAITING_FOR_CONFIRMATION" && (
+                                        <>
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm"
+                                                className="text-green-700 border-green-200 bg-green-50 hover:bg-green-100 hover:text-green-800 hover:border-green-300 transition-colors"
+                                                onClick={() => onAction(transaction, "ACCEPT")}
+                                            >
+                                                <CheckCircle className="h-4 w-4 mr-1.5" />
+                                                Terima
+                                            </Button>
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm"
+                                                className="text-red-700 border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-800 hover:border-red-300 transition-colors"
+                                                onClick={() => onAction(transaction, "REJECT")}
+                                            >
+                                                <XCircle className="h-4 w-4 mr-1.5" />
+                                                Tolak
+                                            </Button>
+                                        </>
+                                    )}
+                                    {transaction.status === "PAID" && (
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm"
+                                            className="text-blue-700 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:text-blue-800 hover:border-blue-300 transition-colors"
+                                            onClick={() => onReminder(transaction)}
+                                        >
+                                            <Mail className="h-4 w-4 mr-1.5" />
+                                            Kirim Pengingat
+                                        </Button>
+                                    )}
+                                    {transaction.status === "WAITING_FOR_PAYMENT" && !transaction.paymentProof && (
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm"
+                                            className="text-amber-700 border-amber-200 bg-amber-50 hover:bg-amber-100 hover:text-amber-800 hover:border-amber-300 transition-colors"
+                                            onClick={() => onAction(transaction, "CANCEL")}
+                                        >
+                                            <XCircle className="h-4 w-4 mr-1.5" />
+                                            Batalkan
+                                        </Button>
+                                    )}
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     );
 };

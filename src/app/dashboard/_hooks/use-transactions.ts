@@ -1,5 +1,6 @@
 // src/hooks/use-transactions.ts
 import { useState, useEffect } from 'react';
+
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { axiosInstance } from '@/lib/axios';
@@ -29,25 +30,35 @@ export const useGetTransactions = (
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const session = useSession();
+  const status = session.status; // 'loading' | 'authenticated' | 'unauthenticated'
+
   const { enabled, role } = options;
 
   const fetchData = async () => {
     if (!enabled) return;
-    
+    // Wait until session is resolved
+    if (status === 'loading') return;
+    if (status === 'unauthenticated') {
+      router.push('/login');
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Check if user is authenticated
-      if (!session.data?.user?.accessToken) {
-        throw new Error('Authentication required');
+      const accessToken = session.data?.user?.accessToken;
+      if (!accessToken) {
+        // Do not error loudly during initial load; rely on status redirects
+        setError('Authentication required');
+        return;
       }
-      
+
       // Determine endpoint based on role
-      const endpoint = role === 'tenant' ? '/transactions/tenant' : '/transactions';
-      
+      const endpoint = role === 'tenant' ? '/transactions' : '/transactions/user';
+
       const response = await axiosInstance.get<TransactionsResponse>(endpoint, {
-        headers: { Authorization: `Bearer ${session.data.user.accessToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
         params: {
           page: params.page || 1,
           take: params.take || 20,
@@ -56,14 +67,11 @@ export const useGetTransactions = (
           ...params
         }
       });
-      
+
       setData(response.data);
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'An error occurred';
-      
       setError(errorMessage);
-      
-      // Redirect to login if authentication error
       if (err.response?.status === 401) {
         router.push('/login');
       }
@@ -74,7 +82,8 @@ export const useGetTransactions = (
 
   useEffect(() => {
     fetchData();
-  }, [JSON.stringify(params), enabled, role]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(params), enabled, role, status, session.data?.user?.accessToken]);
 
   // Function to manually refetch data
   const refetch = () => {
