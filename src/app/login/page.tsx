@@ -96,11 +96,10 @@ const SignIn = () => {
                 password: values.password,
               });
 
-              // Setelah login berhasil, simpan access token ke localStorage
               if (response?.accessToken) {
                 localStorage.setItem("access_token", response.accessToken);
                 localStorage.setItem("token", response.accessToken); // Consistency
-                window.location.href = "/dashboard"; // Redirect ke dashboard
+                window.location.href = "/"; 
               }
             }}
           >

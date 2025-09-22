@@ -9,21 +9,21 @@ const heroSlides = [
     id: 1,
     title: "Temukan Penginapan Terbaik di Indonesia",
     subtitle: "Nikmati pengalaman menginap yang tak terlupakan dengan harga terjangkau",
-    image: "/beautiful-indonesian-resort-with-pool-and-palm-tre.png",
+    image: "/beautiful-indonesian-resort-with-pool-and-palm-tre.jpg",  // Path yang benar
     cta: "Jelajahi Sekarang",
   },
   {
     id: 2,
     title: "Liburan Impian Menanti Anda",
     subtitle: "Dari villa mewah hingga homestay nyaman, temukan tempat yang sempurna",
-    image: "/cozy-indonesian-villa-with-garden-view.png",
+    image: "/cozy-indonesian-villa-with-garden-view.jpg",  // Path yang benar
     cta: "Mulai Pencarian",
   },
   {
     id: 3,
     title: "Booking Mudah, Liburan Menyenangkan",
     subtitle: "Sistem booking yang aman dan terpercaya untuk perjalanan Anda",
-    image: "/modern-indonesian-hotel-lobby-with-comfortable-sea.png",
+    image: "/modern-indonesian-hotel-lobby-with-comfortable-sea.jpg",  // Path yang benar
     cta: "Book Sekarang",
   },
 ]

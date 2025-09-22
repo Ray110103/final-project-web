@@ -1,5 +1,5 @@
 "use client";
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, Home } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,14 +13,34 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AppSwitcher } from "./app-switcher";
 import { ThemeToggle } from "../theme-toggle";
-
-
+import Link from "next/link";
+import Image from "next/image";
 
 export function Topbar() {
 	return (
 		<div className="flex h-16 items-center justify-between border-b px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-			{/* Search */}
-			<div className="flex items-center max-w-2xl flex-1">
+			{/* Left Section - Logo Home + Search */}
+			<div className="flex items-center gap-4 max-w-2xl flex-1">
+				{/* Logo Home */}
+				<Link 
+					href="/home" 
+					className="flex items-center justify-center w-9 h-9 rounded-md hover:bg-muted transition-colors shrink-0"
+					aria-label="Go to Home"
+				>
+					{/* Opsi 1: Menggunakan Icon Home */}
+					<Home className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+					
+					{/* Opsi 2: Menggunakan Logo Image (uncomment jika ingin pakai logo) */}
+					{/* <Image 
+						src="/logo.png" 
+						alt="Home" 
+						width={20} 
+						height={20}
+						className="object-contain"
+					/> */}
+				</Link>
+
+				{/* Search */}
 				<div className="relative w-full max-w-lg">
 					<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 					<Input

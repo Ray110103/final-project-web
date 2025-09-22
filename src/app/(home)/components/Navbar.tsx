@@ -1,39 +1,39 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Menu, X, Home, Building, User } from "lucide-react";
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Menu, X, Home, Building } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu"
 
 export function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [isOpen, setIsOpen] = useState(false)
+  const [user, setUser] = useState<{ name: string } | null>(null)
 
   // Check for the token when the component mounts
   useEffect(() => {
     // Check for access token in localStorage or sessionStorage
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("access_token")
 
     if (token) {
       // You can replace this with decoding the token to get the user info (using JWT decode, for example)
-      setUser({ name: "John Doe" }); // Set user info based on token or decoded JWT data
+      setUser({ name: "John Doe" }) // Set user info based on token or decoded JWT data
     }
-  }, []);
+  }, [])
 
-  const toggleMenu = () => setIsOpen(!isOpen);
+  const toggleMenu = () => setIsOpen(!isOpen)
 
   const handleLogout = () => {
     // Remove token on logout
-    localStorage.removeItem("access_token");
-    setUser(null); // Clear user state
-  };
+    localStorage.removeItem("access_token")
+    setUser(null) // Clear user state
+  }
 
   return (
     <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
@@ -47,23 +47,14 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link
-              href="/"
-              className="flex items-center space-x-1 text-foreground hover:text-accent transition-colors"
-            >
+            <Link href="/" className="flex items-center space-x-1 text-foreground hover:text-accent transition-colors">
               <Home className="h-4 w-4" />
               <span>Beranda</span>
             </Link>
-            <Link
-              href="/property"
-              className="text-foreground hover:text-accent transition-colors"
-            >
+            <Link href="/property" className="text-foreground hover:text-accent transition-colors">
               Properti
             </Link>
-            <Link
-              href="/about-us"
-              className="text-foreground hover:text-accent transition-colors"
-            >
+            <Link href="/about-us" className="text-foreground hover:text-accent transition-colors">
               Tentang Kami
             </Link>
           </div>
@@ -82,12 +73,8 @@ export function Navbar() {
             ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="flex items-center space-x-2"
-                  >
-                    <Menu className="h-5 w-5 text-foreground" />{" "}
-                    {/* Ikon garis tiga */}
+                  <Button variant="ghost" className="flex items-center space-x-2">
+                    <Menu className="h-5 w-5 text-foreground" /> {/* Ikon garis tiga */}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -98,9 +85,7 @@ export function Navbar() {
                     <Link href="/dashboard">Dashboard</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    Logout
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -109,11 +94,7 @@ export function Navbar() {
           {/* Mobile menu button */}
           <div className="md:hidden">
             <Button variant="ghost" size="icon" onClick={toggleMenu}>
-              {isOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>
           </div>
         </div>
@@ -175,8 +156,8 @@ export function Navbar() {
                     <Button
                       variant="destructive"
                       onClick={() => {
-                        handleLogout();
-                        toggleMenu();
+                        handleLogout()
+                        toggleMenu()
                       }}
                     >
                       Logout
@@ -189,7 +170,7 @@ export function Navbar() {
         )}
       </div>
     </nav>
-  );
+  )
 }
 
-export default Navbar;
+export default Navbar

@@ -3,7 +3,6 @@ import HeroSection from "./components/HeroSection";
 import NavigationBar from "./components/Navbar";
 import PropertyPreview from "./components/PropertiesPreview";
 import LandingSearchForm from "./components/SearchForm";
-import SearchForm from "./components/SearchForm";
 
 const page = () => {
   return (
