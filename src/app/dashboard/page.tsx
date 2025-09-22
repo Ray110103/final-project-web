@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { TransactionList } from '@/components/tenant/transaction-list';
 import { DashboardStats } from '@/components/tenant/dashboard-stats';
-import { useGetTransactions } from './_hooks/use-transactions';
+import { useGetTenantTransactions } from './_hooks/use-transactions';
 import { TransactionStatus } from '@/types/transaction';
 
 export default function TenantDashboardPage() {
@@ -36,7 +36,7 @@ export default function TenantDashboardPage() {
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | "ALL">("ALL");
   const router = useRouter();
 
-  const { data: transactionsData, loading, error, refetch } = useGetTransactions({
+  const { data: transactionsData, loading, error, refetch } = useGetTenantTransactions({
     status: statusFilter !== "ALL" ? statusFilter : undefined
   });
 

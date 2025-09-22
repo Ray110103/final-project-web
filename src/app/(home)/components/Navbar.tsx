@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Menu, X, Home, Building, User } from "lucide-react"
+import { useSession, signOut } from "next-auth/react"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -14,9 +15,11 @@ import {
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
-
-  // TODO: ganti dengan state auth sebenarnya (misal dari Zustand atau NextAuth)
-  const [user, setUser] = useState<{ name: string } | null>(null)
+  const { data: session } = useSession()
+  const user = (session?.user as any) || null
+  const role = (user?.role as string | undefined)?.toLowerCase()
+  const isUser = role === "user"
+  const isTenant = role === "tenant"
 
   const toggleMenu = () => setIsOpen(!isOpen)
 
@@ -42,6 +45,11 @@ export function Navbar() {
             <Link href="/about-us" className="text-foreground hover:text-accent transition-colors">
               Tentang Kami
             </Link>
+            {isUser && (
+              <Link href="/orders" className="text-foreground hover:text-accent transition-colors">
+                Pesanan Saya
+              </Link>
+            )}
           </div>
 
           {/* Auth Section */}
@@ -60,18 +68,25 @@ export function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center space-x-2">
                     <User className="h-5 w-5" />
-                    <span>{user.name}</span>
+                    <span>{user?.name ?? "User"}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {isUser && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/orders">Pesanan Saya</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link href="/profile">Profile</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard">Dashboard</Link>
-                  </DropdownMenuItem>
+                  {role !== "user" && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard">Dashboard</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setUser(null)}>
+                  <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
                     Logout
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -101,6 +116,11 @@ export function Navbar() {
               <Link href="/about-us" onClick={toggleMenu} className="block px-3 py-2 text-foreground hover:text-accent transition-colors">
                 Tentang Kami
               </Link>
+              {isUser && (
+                <Link href="/orders" onClick={toggleMenu} className="block px-3 py-2 text-foreground hover:text-accent transition-colors">
+                  Pesanan Saya
+                </Link>
+              )}
 
               {/* Auth Section Mobile */}
               <div className="flex flex-col space-y-2 px-3 py-2">
@@ -124,12 +144,14 @@ export function Navbar() {
                         Profile
                       </Link>
                     </Button>
-                    <Button variant="ghost" asChild className="justify-start">
-                      <Link href="/dashboard" onClick={toggleMenu}>
-                        Dashboard
-                      </Link>
-                    </Button>
-                    <Button variant="destructive" onClick={() => setUser(null)}>
+                    {role !== "user" && (
+                      <Button variant="ghost" asChild className="justify-start">
+                        <Link href="/dashboard" onClick={toggleMenu}>
+                          Dashboard
+                        </Link>
+                      </Button>
+                    )}
+                    <Button variant="destructive" onClick={() => signOut({ callbackUrl: "/login" })}>
                       Logout
                     </Button>
                   </>

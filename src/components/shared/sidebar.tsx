@@ -19,11 +19,21 @@ import {
 	HelpCircle,
 	LogIn,
 	AlertCircle,
+    CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSession } from "next-auth/react";
 
-const sidebarGroups = [
-	{
+type SidebarItem = {
+  title: string;
+  href: string;
+  icon: any;
+  badge: string | null;
+  roles?: string[]; // allowed roles; if omitted, visible to all
+};
+
+const sidebarGroups: { title: string; items: SidebarItem[] }[] = [
+  {
 		title: "General",
 		items: [
 			{
@@ -31,30 +41,42 @@ const sidebarGroups = [
 				href: "/dashboard",
 				icon: LayoutDashboard,
 				badge: null,
+				roles: ["admin", "user", "tenant"],
 			},
 			{
 				title: "Analytics",
 				href: "/dashboard/analytics",
 				icon: BarChart3,
 				badge: "New",
+				roles: ["admin", "tenant"],
 			},
 			{
 				title: "Sales Report",
 				href: "/dashboard/reports/sales",
 				icon: BarChart3,
 				badge: null,
+				roles: ["admin", "tenant"],
 			},
+      {
+        title: "Transactions",
+        href: "/dashboard/transactions",
+        icon: CreditCard,
+        badge: null,
+        roles: ["tenant"],
+      },
 			{
 				title: "Property Report",
 				href: "/dashboard/reports/property-availability",
 				icon: FileText,
 				badge: null,
+				roles: ["admin", "tenant"],
 			},
 			{
 				title: "Settings",
 				href: "/dashboard/settings",
 				icon: Settings,
 				badge: null,
+				roles: ["admin", "tenant"],
 			},
 		],
 	},
@@ -62,29 +84,29 @@ const sidebarGroups = [
 	{
 		title: "Property",
 		items: [
-			
 			{
 				title: "Properties",
 				href: "/dashboard/property/property-list",
 				icon: Settings,
 				badge: null,
+				roles: ["tenant"],
 			},
 			{
 				title: "Create Property",
 				href: "/dashboard/property/create",
 				icon: Settings,
 				badge: null,
+				roles: ["tenant"],
 			},
 			{
 				title: "Room",
 				href: "/dashboard/rooms/create",
 				icon: Settings,
 				badge: null,
+				roles: ["tenant"],
 			},
 		],
 	},
-
-	
 
 	{
 		title: "Pages",
@@ -94,36 +116,42 @@ const sidebarGroups = [
 				href: "/dashboard/users",
 				icon: Users,
 				badge: "12",
+				roles: ["admin"],
 			},
 			{
 				title: "Projects",
 				href: "/dashboard/projects",
 				icon: FolderKanban,
 				badge: null,
+				roles: ["tenant"],
 			},
 			{
 				title: "Documents",
 				href: "/dashboard/documents",
 				icon: FileText,
 				badge: null,
+				roles: ["tenant"],
 			},
 			{
 				title: "Calendar",
 				href: "/dashboard/calendar",
 				icon: Calendar,
 				badge: "3",
+				roles: ["tenant"],
 			},
 			{
 				title: "Auth Pages",
 				href: "/dashboard/auth",
 				icon: LogIn,
 				badge: null,
+				roles: ["admin"],
 			},
 			{
 				title: "Error Pages",
 				href: "/dashboard/errors",
 				icon: AlertCircle,
 				badge: null,
+				roles: ["admin"],
 			},
 		],
 	},
@@ -136,24 +164,28 @@ const sidebarGroups = [
 				href: "/dashboard/messages",
 				icon: MessageSquare,
 				badge: "5",
+				roles: ["tenant"],
 			},
 			{
 				title: "Database",
 				href: "/dashboard/database",
 				icon: Database,
 				badge: null,
+				roles: ["admin"],
 			},
 			{
 				title: "Security",
 				href: "/dashboard/security",
 				icon: Shield,
 				badge: "!",
+				roles: ["admin"],
 			},
 			{
 				title: "Help",
 				href: "/dashboard/help",
 				icon: HelpCircle,
 				badge: null,
+				roles: ["admin", "user"],
 			},
 		],
 	},
@@ -166,6 +198,11 @@ interface SidebarProps {
 export function Sidebar({ onMobileClose }: SidebarProps) {
 	const pathname = usePathname();
 	const [isCollapsed, setIsCollapsed] = useState(false);
+  const { data: session } = useSession();
+  const role = (() => {
+    const r = (session?.user as any)?.role;
+    return typeof r === "string" ? r.toLowerCase() : undefined;
+  })();
 
 	const handleLinkClick = () => {
 		if (onMobileClose) {
@@ -213,7 +250,22 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
 
 			{/* Navigation Groups */}
 			<nav className="flex-1 space-y-8 p-6">
-				{sidebarGroups.map((group) => (
+				{sidebarGroups
+					.map((group) => ({
+						title: group.title,
+						items: group.items.filter((item) => {
+							// If item has role restrictions
+							if (item.roles && item.roles.length > 0) {
+								// Hide until role is known
+								if (!role) return false;
+								return item.roles.map((r) => r.toLowerCase()).includes(role);
+							}
+							// Items without roles are public
+							return true;
+						}),
+					}))
+					.filter((g) => g.items.length > 0)
+					.map((group) => (
 					<div key={group.title} className="space-y-3">
 						{/* Group Title */}
 						{!isCollapsed && (

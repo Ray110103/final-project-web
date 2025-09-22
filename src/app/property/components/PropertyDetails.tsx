@@ -1,6 +1,7 @@
 "use client";
 
 import type { FC } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import useGetPropertyBySlug from "../_hooks/useGetPropertyBySlug";
@@ -8,6 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import { createTransaction, getSnapToken } from "@/lib/transaction-service";
 import {
   MapPin,
   Calendar,
@@ -17,6 +22,8 @@ import {
   Clock,
   Navigation,
 } from "lucide-react";
+import { loadSnap } from "@/lib/midtrans";
+import { ReviewSection } from "@/components/property/ReviewSection";
 
 interface PropertyDetailsProps {
   slug: string;
@@ -25,6 +32,120 @@ interface PropertyDetailsProps {
 const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
   const { data: property, isPending, isError } = useGetPropertyBySlug(slug);
   const router = useRouter();
+  const { data: session } = useSession();
+
+  // Booking form state
+  const [roomId, setRoomId] = useState<number | null>(null);
+  const [qty, setQty] = useState<number>(1);
+  const [startDate, setStartDate] = useState<string>(""
+  );
+  const [endDate, setEndDate] = useState<string>("");
+  const [paymentMethod, setPaymentMethod] = useState<"MANUAL_TRANSFER" | "PAYMENT_GATEWAY">("MANUAL_TRANSFER");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Initialize defaults when property loads
+  useEffect(() => {
+    if (property?.rooms && property.rooms.length > 0) {
+      setRoomId(property.rooms[0].id);
+    }
+    // Default date: today and tomorrow
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    setStartDate(toIso(today));
+    setEndDate(toIso(tomorrow));
+  }, [property]);
+
+  const canSubmit = useMemo(() => {
+    return !!roomId && !!startDate && !!endDate && qty > 0;
+  }, [roomId, startDate, endDate, qty]);
+
+  const onCreateTransaction = async () => {
+    if (!canSubmit) return;
+    try {
+      // Validate date order
+      if (new Date(startDate) > new Date(endDate)) {
+        toast.error("Tanggal check-in harus sebelum tanggal check-out");
+        return;
+      }
+      setSubmitting(true);
+      const res = await createTransaction(
+        {
+          roomId: roomId as number,
+          qty,
+          startDate,
+          endDate,
+          paymentMethod,
+        },
+        (session?.user as any)?.accessToken
+      );
+
+      // Assume API returns a transaction-like object
+      const tx = res?.data;
+      const uuid = tx?.uuid as string | undefined;
+      const invoiceUrl = tx?.invoice_url as string | undefined;
+
+      if (paymentMethod === "PAYMENT_GATEWAY") {
+        const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY as string;
+        const isProd = (process.env.NEXT_PUBLIC_MIDTRANS_PRODUCTION as string) === "true";
+        const fallback = () => {
+          if (invoiceUrl) window.open(invoiceUrl, "_blank");
+        };
+        try {
+          await loadSnap(clientKey, isProd);
+          // Retrieve token from backend by uuid
+          const resToken = await getSnapToken(uuid as string, (session?.user as any)?.accessToken);
+          const token = resToken?.token as string | undefined;
+          if (!token) {
+            toast.error("Token pembayaran tidak tersedia");
+            fallback();
+            router.push("/orders");
+            return;
+          }
+          const snap: any = (window as any).snap;
+          if (!snap?.pay) {
+            fallback();
+            router.push("/orders");
+            return;
+          }
+          snap.pay(token, {
+            onSuccess: () => {
+              toast.success("Pembayaran berhasil");
+              router.push("/orders");
+            },
+            onPending: () => {
+              toast.message("Menunggu pembayaran diselesaikan");
+              router.push("/orders");
+            },
+            onError: () => {
+              toast.error("Terjadi kesalahan saat proses pembayaran");
+            },
+            onClose: () => {
+              toast("Popup pembayaran ditutup");
+            },
+          });
+          return;
+        } catch (e: any) {
+          toast.error(e?.message || "Gagal memuat Midtrans");
+          fallback();
+          router.push("/orders");
+          return;
+        }
+      }
+      if (uuid) {
+        // Open orders with upload modal preselected
+        router.push(`/orders?upload=${uuid}`);
+      } else {
+        router.push("/orders");
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err.message || "Gagal membuat pesanan";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (isPending) {
     return (
@@ -93,9 +214,11 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
             {/* Title and Category */}
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-4">
-                <h1 className="text-3xl md:text-4xl font-bold text-foreground text-balance">
-                  {property.title}
-                </h1>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl md:text-4xl font-bold text-foreground text-balance">
+                    {property.title}
+                  </h1>
+                </div>
                 {property.category && (
                   <Badge variant="secondary" className="shrink-0">
                     <Building className="h-3 w-3 mr-1" />
@@ -167,6 +290,13 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
                 </CardContent>
               </Card>
             )}
+
+            {/* Reviews Section (below coordinates) */}
+            <Card>
+              <CardContent className="pt-6">
+                <ReviewSection propertyId={property.id?.toString() || ''} />
+              </CardContent>
+            </Card>
 
             {/* Display Property Images */}
             {property.images && property.images.length > 0 && (
@@ -294,7 +424,7 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
                           )}
                         </div>
 
-                        {/* ✅ Room Images */}
+                        {/* Room Images */}
                         {room.images && room.images.length > 0 && (
                           <div className="flex gap-2 flex-wrap">
                             {room.images.map((img) => (
@@ -330,6 +460,72 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
               </Card>
             )}
 
+            {/* Booking Form */}
+            {property.rooms && property.rooms.length > 0 && (
+              <Card>
+                <CardContent className="pt-6 space-y-4">
+                  <h3 className="text-lg font-semibold text-foreground mb-2">Reservasi Kamar</h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    {/* Room select */}
+                    <div className="space-y-1">
+                      <label className="text-sm text-muted-foreground">Pilih Kamar</label>
+                      <select
+                        className="w-full border rounded-md px-3 py-2 bg-background"
+                        value={roomId ?? undefined}
+                        onChange={(e) => setRoomId(Number(e.target.value))}
+                      >
+                        {property.rooms.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name} {r.price ? `- Rp ${r.price.toLocaleString('id-ID')}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-sm text-muted-foreground">Check-in</label>
+                        <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm text-muted-foreground">Check-out</label>
+                        <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                      </div>
+                    </div>
+
+                    {/* Quantity */}
+                    <div className="space-y-1">
+                      <label className="text-sm text-muted-foreground">Jumlah</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={qty}
+                        onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
+                      />
+                    </div>
+
+                    {/* Payment Method */}
+                    <div className="space-y-1">
+                      <label className="text-sm text-muted-foreground">Metode Pembayaran</label>
+                      <select
+                        className="w-full border rounded-md px-3 py-2 bg-background"
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value as any)}
+                      >
+                        <option value="MANUAL_TRANSFER">Transfer Manual (upload bukti)</option>
+                        <option value="PAYMENT_GATEWAY">Payment Gateway (otomatis)</option>
+                      </select>
+                    </div>
+
+                    <Button onClick={onCreateTransaction} disabled={!canSubmit || submitting} className="w-full">
+                      {submitting ? "Memproses..." : "Buat Pesanan"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Action Buttons */}
             <Card>
               <CardContent className="pt-6">
@@ -357,6 +553,7 @@ const PropertyDetails: FC<PropertyDetailsProps> = ({ slug }) => {
           </div>
         </div>
       </div>
+
     </div>
   );
 };
